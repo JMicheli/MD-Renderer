@@ -4,9 +4,9 @@ pub mod mesh;
 pub mod texture;
 pub mod vertex;
 
-use fxhash::{FxBuildHasher, FxHashMap};
 use image::{io::Reader as ImageReader, DynamicImage, ImageBuffer, Rgb, Rgba};
 use log::{debug, error, warn};
+use rustc_hash::{FxBuildHasher, FxHashMap};
 use std::{collections::HashMap, sync::Arc};
 use vulkano::{
   buffer::{BufferUsage, CpuBufferPool},
@@ -57,22 +57,50 @@ pub struct MdrResourceManager {
 impl MdrResourceManager {
   pub fn new(logical_device: Arc<Device>, queue: Arc<Queue>) -> Self {
     // Mesh memory handler initialization
-    let vertex_pos_buffer_pool =
-      CpuBufferPool::<MdrVertex_pos>::new(logical_device.clone(), BufferUsage::vertex_buffer());
-    let vertex_norm_buffer_pool =
-      CpuBufferPool::<MdrVertex_norm>::new(logical_device.clone(), BufferUsage::vertex_buffer());
-    let vertex_uv_buffer_pool =
-      CpuBufferPool::<MdrVertex_uv>::new(logical_device.clone(), BufferUsage::vertex_buffer());
-    let vertex_tan_buffer_pool =
-      CpuBufferPool::<MdrVertex_tan>::new(logical_device.clone(), BufferUsage::vertex_buffer());
-    let index_buffer_pool =
-      CpuBufferPool::<u32>::new(logical_device.clone(), BufferUsage::index_buffer());
+    let vertex_pos_buffer_pool = CpuBufferPool::<MdrVertex_pos>::new(
+      logical_device.clone(),
+      BufferUsage {
+        vertex_buffer: true,
+        ..BufferUsage::empty()
+      },
+    );
+    let vertex_norm_buffer_pool = CpuBufferPool::<MdrVertex_norm>::new(
+      logical_device.clone(),
+      BufferUsage {
+        vertex_buffer: true,
+        ..BufferUsage::empty()
+      },
+    );
+    let vertex_uv_buffer_pool = CpuBufferPool::<MdrVertex_uv>::new(
+      logical_device.clone(),
+      BufferUsage {
+        vertex_buffer: true,
+        ..BufferUsage::empty()
+      },
+    );
+    let vertex_tan_buffer_pool = CpuBufferPool::<MdrVertex_tan>::new(
+      logical_device.clone(),
+      BufferUsage {
+        vertex_buffer: true,
+        ..BufferUsage::empty()
+      },
+    );
+    let index_buffer_pool = CpuBufferPool::<u32>::new(
+      logical_device.clone(),
+      BufferUsage {
+        index_buffer: true,
+        ..BufferUsage::empty()
+      },
+    );
     let mesh_library = FxHashMap::<String, MdrGpuMeshHandle>::default();
 
     // Material memory handler initialization
     let material_buffer_pool = CpuBufferPool::<MdrMaterialUniformData>::new(
       logical_device.clone(),
-      BufferUsage::uniform_buffer(),
+      BufferUsage {
+        uniform_buffer: true,
+        ..BufferUsage::empty()
+      },
     );
     let material_library = FxHashMap::<String, MdrGpuMaterialHandle>::default();
 
@@ -417,12 +445,21 @@ impl MdrResourceManager {
   fn upload_mesh_to_gpu(&mut self, mesh: MdrMeshData) -> MdrGpuMeshHandle {
     let index_count = mesh.indices.len() as u32;
     MdrGpuMeshHandle {
-      positions_chunk: self.vertex_pos_buffer_pool.chunk(mesh.positions).unwrap(),
-      normals_chunk: self.vertex_norm_buffer_pool.chunk(mesh.normals).unwrap(),
-      uvs_chunk: self.vertex_uv_buffer_pool.chunk(mesh.uvs).unwrap(),
-      tangents_chunk: self.vertex_tan_buffer_pool.chunk(mesh.tangents).unwrap(),
+      positions_chunk: self
+        .vertex_pos_buffer_pool
+        .from_iter(mesh.positions)
+        .unwrap(),
+      normals_chunk: self
+        .vertex_norm_buffer_pool
+        .from_iter(mesh.normals)
+        .unwrap(),
+      uvs_chunk: self.vertex_uv_buffer_pool.from_iter(mesh.uvs).unwrap(),
+      tangents_chunk: self
+        .vertex_tan_buffer_pool
+        .from_iter(mesh.tangents)
+        .unwrap(),
 
-      index_chunk: self.index_buffer_pool.chunk(mesh.indices).unwrap(),
+      index_chunk: self.index_buffer_pool.from_iter(mesh.indices).unwrap(),
       index_count,
     }
   }
@@ -501,7 +538,7 @@ impl MdrResourceManager {
     MdrGpuMaterialHandle {
       material_data: self
         .material_buffer_pool
-        .chunk([material_uniforms])
+        .from_iter([material_uniforms])
         .unwrap(),
       diffuse_map,
       roughness_map,

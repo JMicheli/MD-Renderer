@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use log::error;
-use vulkano::{buffer::cpu_pool::CpuBufferPoolChunk, memory::pool::StdMemoryPool};
+use vulkano::{buffer::cpu_pool::CpuBufferPoolChunk, memory::pool::StandardMemoryPool};
 
 use super::{vertex::MdrVertex_tan, MdrVertex_norm, MdrVertex_pos, MdrVertex_uv};
 
@@ -22,12 +22,12 @@ pub struct MdrMesh {
 }
 
 pub struct MdrGpuMeshHandle {
-  pub(crate) positions_chunk: Arc<CpuBufferPoolChunk<MdrVertex_pos, Arc<StdMemoryPool>>>,
-  pub(crate) normals_chunk: Arc<CpuBufferPoolChunk<MdrVertex_norm, Arc<StdMemoryPool>>>,
-  pub(crate) uvs_chunk: Arc<CpuBufferPoolChunk<MdrVertex_uv, Arc<StdMemoryPool>>>,
-  pub(crate) tangents_chunk: Arc<CpuBufferPoolChunk<MdrVertex_tan, Arc<StdMemoryPool>>>,
+  pub(crate) positions_chunk: Arc<CpuBufferPoolChunk<MdrVertex_pos, Arc<StandardMemoryPool>>>,
+  pub(crate) normals_chunk: Arc<CpuBufferPoolChunk<MdrVertex_norm, Arc<StandardMemoryPool>>>,
+  pub(crate) uvs_chunk: Arc<CpuBufferPoolChunk<MdrVertex_uv, Arc<StandardMemoryPool>>>,
+  pub(crate) tangents_chunk: Arc<CpuBufferPoolChunk<MdrVertex_tan, Arc<StandardMemoryPool>>>,
 
-  pub(crate) index_chunk: Arc<CpuBufferPoolChunk<u32, Arc<StdMemoryPool>>>,
+  pub(crate) index_chunk: Arc<CpuBufferPoolChunk<u32, Arc<StandardMemoryPool>>>,
   pub(crate) index_count: u32,
 }
 
@@ -38,7 +38,7 @@ pub fn open_obj(path: &str) -> Option<MdrMeshData> {
   let (models, _) = match load_result {
     Ok(value) => value,
     Err(e) => {
-      error!("Failed to load obj file: {}, reason: {}", path, e);
+      error!("Failed to load obj file: {path}, reason: {e}");
       return None;
     }
   };

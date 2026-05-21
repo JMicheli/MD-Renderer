@@ -11,7 +11,7 @@ use vulkano::{
   },
   descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet},
   device::{
-    physical::{PhysicalDevice, PhysicalDeviceType, QueueFamily},
+    physical::{PhysicalDevice, PhysicalDeviceType},
     Device, DeviceCreateInfo, DeviceExtensions, Queue, QueueCreateInfo,
   },
   format::{ClearValue, Format},
@@ -19,8 +19,9 @@ use vulkano::{
   instance::{Instance, InstanceCreateInfo, InstanceExtensions},
   pipeline::{graphics::viewport::Viewport, Pipeline, PipelineBindPoint},
   render_pass::{Framebuffer, FramebufferCreateInfo},
-  swapchain::{self, AcquireError, Surface, Swapchain, SwapchainCreateInfo},
+  swapchain::{self, AcquireError, PresentInfo, Surface, Swapchain, SwapchainCreateInfo},
   sync::{self, FlushError, GpuFuture},
+  VulkanLibrary,
 };
 
 use crate::{
@@ -65,8 +66,10 @@ impl MdrGraphicsContext {
   pub fn new(event_loop: &EventLoop<()>, debug_enabled: bool) -> Self {
     debug!("Creating graphics context");
 
+    // Get a vulkan library
+    let library = VulkanLibrary::new().expect("Failed to acquire vulkan library");
     // Create instance containing Vulkan function pointers
-    let instance = Self::create_instance(debug_enabled);
+    let instance = Self::create_instance(library, debug_enabled);
     debug!("Created vulkan instance");
 
     // Create window
@@ -80,21 +83,23 @@ impl MdrGraphicsContext {
     debug!("Created window");
 
     // Select physical device and queue
-    let (physical_device, queue_family) =
+    let (physical_device, queue_family_index) =
       Self::pick_physical_device(&instance, window.surface.clone());
-    info!(
-      "Using device: {} (type: {:?})",
-      physical_device.properties().device_name,
-      physical_device.properties().device_type,
-    );
+
+    let device_name = &physical_device.properties().device_name;
+    let device_type = physical_device.properties().device_type;
+    info!("Using device: {device_name} (type: {device_type:?})");
 
     // Create logical device
     let device_extensions = DeviceExtensions {
       khr_swapchain: true,
-      ..DeviceExtensions::none()
+      ..DeviceExtensions::empty()
     };
-    let (logical_device, queue) =
-      Self::create_logical_device(physical_device, device_extensions, queue_family);
+    let (logical_device, queue) = Self::create_logical_device(
+      physical_device.clone(),
+      device_extensions,
+      queue_family_index,
+    );
     debug!("Created logical device");
 
     // Create swapchain
@@ -201,7 +206,13 @@ impl MdrGraphicsContext {
       .join(acquire_future)
       .then_execute(self.queue.clone(), command_buffer)
       .unwrap()
-      .then_swapchain_present(self.queue.clone(), self.swapchain.clone(), image_index)
+      .then_swapchain_present(
+        self.queue.clone(),
+        PresentInfo {
+          index: image_index,
+          ..PresentInfo::swapchain(self.swapchain.clone())
+        },
+      )
       .then_signal_fence_and_flush();
 
     let end_of_frame_future = match future {
@@ -211,7 +222,7 @@ impl MdrGraphicsContext {
         sync::now(self.logical_device.clone()).boxed()
       }
       Err(e) => {
-        error!("Failed to flush future: {}", e);
+        error!("Failed to flush future: {e}");
         sync::now(self.logical_device.clone()).boxed()
       }
     };
@@ -282,7 +293,7 @@ impl MdrGraphicsContext {
     // Create command buffer builder
     let mut builder = AutoCommandBufferBuilder::primary(
       logical_device.clone(),
-      queue.family(),
+      queue.queue_family_index(),
       CommandBufferUsage::OneTimeSubmit,
     )
     .unwrap();
@@ -443,7 +454,10 @@ impl MdrGraphicsContext {
       });
     CpuAccessibleBuffer::from_data(
       logical_device.clone(),
-      BufferUsage::storage_buffer(),
+      BufferUsage {
+        storage_buffer: true,
+        ..BufferUsage::empty()
+      },
       false,
       MdrSceneData {
         camera,
@@ -455,16 +469,16 @@ impl MdrGraphicsContext {
   }
 
   /// Create a Vulkan instance with optional debug extensions.
-  fn create_instance(debug_enabled: bool) -> Arc<Instance> {
+  fn create_instance(library: Arc<VulkanLibrary>, debug_enabled: bool) -> Arc<Instance> {
     let required_extensions = {
-      let mut extensions = vulkano_win::required_extensions();
+      let mut extensions = vulkano_win::required_extensions(&library);
 
       // If debugging is enabled, add the debug utility extension
       if debug_enabled {
         info!("Debug enabled");
         let debug_extensions = InstanceExtensions {
           ext_debug_utils: true,
-          ..InstanceExtensions::none()
+          ..InstanceExtensions::empty()
         };
         extensions = extensions.union(&debug_extensions);
       }
@@ -480,7 +494,7 @@ impl MdrGraphicsContext {
       if debug_enabled {
         // Print out available layers
         debug!("Available debugging layers:");
-        let available_layers = vulkano::instance::layers_list().unwrap();
+        let available_layers = library.layer_properties().unwrap();
 
         let mut available_layers_str = String::new();
         for layer in available_layers {
@@ -498,35 +512,44 @@ impl MdrGraphicsContext {
       output_layers
     };
 
-    match Instance::new(InstanceCreateInfo {
-      enabled_extensions: required_extensions,
-      enumerate_portability: true, // This bool makes MacOS work
-      enabled_layers,
-      ..Default::default()
-    }) {
+    match Instance::new(
+      library,
+      InstanceCreateInfo {
+        enabled_extensions: required_extensions,
+        enumerate_portability: true, // This bool makes MacOS work
+        enabled_layers,
+        ..Default::default()
+      },
+    ) {
       Ok(instance) => instance,
       Err(e) => {
-        panic!("Failed to create instance: {}", e);
+        panic!("Failed to create instance: {e}");
       }
     }
   }
 
-  /// Select a physical device to use. Returns the device and associated queue family.
+  /// Select a physical device to use. Returns the device and associated queue family index.
   fn pick_physical_device(
     instance: &Arc<Instance>,
     surface: Arc<Surface<Window>>,
-  ) -> (PhysicalDevice, QueueFamily) {
+  ) -> (Arc<PhysicalDevice>, u32) {
     let device_extensions = DeviceExtensions {
       khr_swapchain: true,
-      ..DeviceExtensions::none()
+      ..DeviceExtensions::empty()
     };
 
-    let device_creation_results = PhysicalDevice::enumerate(instance)
-      .filter(|&p| p.supported_extensions().is_superset_of(&device_extensions))
+    let device_creation_results = instance
+      .enumerate_physical_devices()
+      .unwrap()
+      .filter(|p| p.supported_extensions().contains(&device_extensions))
       .filter_map(|p| {
-        p.queue_families()
-          .find(|&q| q.supports_graphics() && q.supports_surface(&surface).unwrap_or(false))
-          .map(|q| (p, q))
+        p.queue_family_properties()
+          .iter()
+          .enumerate()
+          .position(|(i, q)| {
+            q.queue_flags.graphics && p.surface_support(i as u32, &surface).unwrap_or(false)
+          })
+          .map(|i| (p, i as u32))
       })
       .min_by_key(|(p, _)| match p.properties().device_type {
         PhysicalDeviceType::DiscreteGpu => 0,
@@ -534,6 +557,7 @@ impl MdrGraphicsContext {
         PhysicalDeviceType::VirtualGpu => 2,
         PhysicalDeviceType::Cpu => 3,
         PhysicalDeviceType::Other => 4,
+        _ => 5,
       });
 
     match device_creation_results {
@@ -546,15 +570,18 @@ impl MdrGraphicsContext {
 
   /// Create a Vulkan logical device and queue.
   fn create_logical_device(
-    physical_device: PhysicalDevice,
+    physical_device: Arc<PhysicalDevice>,
     device_extensions: DeviceExtensions,
-    queue_family: QueueFamily,
+    queue_family_index: u32,
   ) -> (Arc<Device>, Arc<Queue>) {
     let device_creation_results = Device::new(
       physical_device,
       DeviceCreateInfo {
         enabled_extensions: device_extensions,
-        queue_create_infos: vec![QueueCreateInfo::family(queue_family)],
+        queue_create_infos: vec![QueueCreateInfo {
+          queue_family_index,
+          ..Default::default()
+        }],
         ..Default::default()
       },
     );
@@ -566,7 +593,7 @@ impl MdrGraphicsContext {
         (device, queues)
       }
       Err(e) => {
-        panic!("Failed to create logical device: {}", e);
+        panic!("Failed to create logical device: {e}");
       }
     }
   }
@@ -574,13 +601,13 @@ impl MdrGraphicsContext {
   fn create_swapchain(
     window: &Arc<MdrWindow>,
     logical_device: &Arc<Device>,
-    physical_device: &PhysicalDevice,
+    physical_device: &Arc<PhysicalDevice>,
   ) -> (Arc<Swapchain<Window>>, Vec<Arc<SwapchainImage<Window>>>) {
     // Retrieve surface capabilities with respect to the physical device
     let surface = &window.surface;
     let surface_capabilities = physical_device
       .surface_capabilities(surface, Default::default())
-      .expect("Failed to retrieve surface capabilities.");
+      .expect("Failed to retrieve surface capabilities");
     // Get other settings
     let dimensions = window.dimensions();
     let vk_image_format = Some(
@@ -597,7 +624,10 @@ impl MdrGraphicsContext {
         min_image_count: surface_capabilities.min_image_count + 1,
         image_format: vk_image_format,
         image_extent: dimensions.into(),
-        image_usage: ImageUsage::color_attachment(),
+        image_usage: ImageUsage {
+          color_attachment: true,
+          ..ImageUsage::empty()
+        },
         composite_alpha: surface_capabilities
           .supported_composite_alpha
           .iter()

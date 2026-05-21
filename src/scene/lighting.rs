@@ -51,10 +51,7 @@ impl MdrLightSet {
   /// Add a light to the scene's light set. Will panic if `MAX_POINT_LIGHTS` are already present.
   pub fn add_light(&mut self, light: MdrLight) {
     if self.light_count == MAX_POINT_LIGHTS {
-      panic!(
-        "You added more than {} lights and now everything broke, be careful.",
-        MAX_POINT_LIGHTS
-      )
+      panic!("You added more than {MAX_POINT_LIGHTS} lights and now everything broke, be careful.",)
     }
 
     self.lights.push(light);
