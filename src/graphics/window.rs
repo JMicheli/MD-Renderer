@@ -17,7 +17,7 @@ pub struct MdrWindowOptions<'a> {
 }
 
 pub struct MdrWindow {
-  pub(crate) surface: Arc<Surface<Window>>,
+  pub(crate) surface: Arc<Surface>,
 }
 
 impl MdrWindow {
@@ -50,7 +50,7 @@ impl MdrWindow {
 
   /// Returns the dimensions of the window.
   pub fn dimensions(&self) -> PhysicalSize<u32> {
-    return self.surface.window().inner_size();
+    return self.get_window().inner_size();
   }
 
   /// Returns whether or not the window has no visible drawing surface.
@@ -58,5 +58,16 @@ impl MdrWindow {
     let dimensions = self.dimensions();
 
     dimensions.width == 0 || dimensions.height == 0
+  }
+
+  /// Gets a reference to the window which the surface is a part of
+  fn get_window(&self) -> &Window {
+    // TODO - Any safety improvements here? This feels a bit haphazard with the unwraps and downcast.
+    self
+      .surface
+      .object()
+      .unwrap()
+      .downcast_ref::<Window>()
+      .unwrap()
   }
 }

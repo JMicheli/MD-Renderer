@@ -10,10 +10,14 @@ use rustc_hash::{FxBuildHasher, FxHashMap};
 use std::{collections::HashMap, sync::Arc};
 use vulkano::{
   buffer::{BufferUsage, CpuBufferPool},
-  command_buffer::{CommandBufferExecFuture, PrimaryAutoCommandBuffer},
+  command_buffer::{
+    allocator::StandardCommandBufferAllocator, AutoCommandBufferBuilder, CommandBufferExecFuture,
+    CommandBufferUsage,
+  },
   device::{Device, Queue},
   format::Format,
   image::{view::ImageView, ImageDimensions, ImmutableImage, MipmapsCount},
+  memory::allocator::{FreeListAllocator, GenericMemoryAllocator, MemoryUsage},
   sampler::{Filter, Sampler, SamplerAddressMode, SamplerCreateInfo},
   sync::{GpuFuture, NowFuture},
 };
@@ -37,6 +41,8 @@ use self::{
 /// references to the buffers in which their data is stored.
 pub struct MdrResourceManager {
   logical_device: Arc<Device>,
+  memory_allocator: Arc<GenericMemoryAllocator<Arc<FreeListAllocator>>>,
+  command_buffer_allocator: Arc<StandardCommandBufferAllocator>,
   queue: Arc<Queue>,
 
   vertex_pos_buffer_pool: CpuBufferPool<MdrVertex_pos>,
@@ -55,52 +61,36 @@ pub struct MdrResourceManager {
 }
 
 impl MdrResourceManager {
-  pub fn new(logical_device: Arc<Device>, queue: Arc<Queue>) -> Self {
+  pub fn new(
+    logical_device: Arc<Device>,
+    memory_allocator: Arc<GenericMemoryAllocator<Arc<FreeListAllocator>>>,
+    command_buffer_allocator: Arc<StandardCommandBufferAllocator>,
+    queue: Arc<Queue>,
+  ) -> Self {
     // Mesh memory handler initialization
-    let vertex_pos_buffer_pool = CpuBufferPool::<MdrVertex_pos>::new(
-      logical_device.clone(),
-      BufferUsage {
-        vertex_buffer: true,
-        ..BufferUsage::empty()
-      },
-    );
-    let vertex_norm_buffer_pool = CpuBufferPool::<MdrVertex_norm>::new(
-      logical_device.clone(),
-      BufferUsage {
-        vertex_buffer: true,
-        ..BufferUsage::empty()
-      },
-    );
-    let vertex_uv_buffer_pool = CpuBufferPool::<MdrVertex_uv>::new(
-      logical_device.clone(),
-      BufferUsage {
-        vertex_buffer: true,
-        ..BufferUsage::empty()
-      },
-    );
-    let vertex_tan_buffer_pool = CpuBufferPool::<MdrVertex_tan>::new(
-      logical_device.clone(),
-      BufferUsage {
-        vertex_buffer: true,
-        ..BufferUsage::empty()
-      },
-    );
-    let index_buffer_pool = CpuBufferPool::<u32>::new(
-      logical_device.clone(),
+    let vertex_pos_buffer_pool = CpuBufferPool::vertex_buffer(memory_allocator.clone());
+    let vertex_norm_buffer_pool = CpuBufferPool::vertex_buffer(memory_allocator.clone());
+    let vertex_uv_buffer_pool = CpuBufferPool::vertex_buffer(memory_allocator.clone());
+    let vertex_tan_buffer_pool = CpuBufferPool::vertex_buffer(memory_allocator.clone());
+    let index_buffer_pool = CpuBufferPool::new(
+      memory_allocator.clone(),
       BufferUsage {
         index_buffer: true,
-        ..BufferUsage::empty()
+        ..Default::default()
       },
+      MemoryUsage::Upload,
     );
+
     let mesh_library = FxHashMap::<String, MdrGpuMeshHandle>::default();
 
     // Material memory handler initialization
-    let material_buffer_pool = CpuBufferPool::<MdrMaterialUniformData>::new(
-      logical_device.clone(),
+    let material_buffer_pool = CpuBufferPool::new(
+      memory_allocator.clone(),
       BufferUsage {
         uniform_buffer: true,
         ..BufferUsage::empty()
       },
+      MemoryUsage::Upload,
     );
     let material_library = FxHashMap::<String, MdrGpuMaterialHandle>::default();
 
@@ -109,6 +99,8 @@ impl MdrResourceManager {
 
     Self {
       logical_device,
+      memory_allocator,
+      command_buffer_allocator,
       queue,
 
       vertex_pos_buffer_pool,
@@ -141,7 +133,7 @@ impl MdrResourceManager {
   ) -> Result<MdrMesh, MdrResourceError> {
     // Check that the mesh name isn't already in use
     if self.mesh_library.contains_key(name) {
-      error!("Mesh library already contains name: {}", name);
+      error!("Mesh library already contains name: {name}");
       return Err(MdrResourceError::DuplicateMeshName);
     }
 
@@ -149,11 +141,11 @@ impl MdrResourceManager {
       Some(mesh) => mesh,
       None => return Err(MdrResourceError::ObjLoadError),
     };
-    debug!("Loaded obj file: {}", path);
+    debug!("Loaded obj file: {path}");
 
     let mesh_handle = self.upload_mesh_to_gpu(mesh_data);
     self.mesh_library.insert(String::from(name), mesh_handle);
-    debug!("Added {} to mesh library", name);
+    debug!("Added {name} to mesh library");
 
     Ok(MdrMesh {
       name: String::from(name),
@@ -165,7 +157,7 @@ impl MdrResourceManager {
 
     // Check that the mesh name isn't already in use
     if self.mesh_library.contains_key(name) {
-      error!("Mesh library already contains name: {}", name);
+      error!("Mesh library already contains name: {name}");
       return Err(MdrResourceError::DuplicateMeshName);
     }
 
@@ -173,11 +165,11 @@ impl MdrResourceManager {
       Some(mesh) => mesh,
       None => return Err(MdrResourceError::AssimpLoadError),
     };
-    debug!("Loaded obj file: {}", path);
+    debug!("Loaded obj file: {path}");
 
     let mesh_handle = self.upload_mesh_to_gpu(mesh_data);
     self.mesh_library.insert(String::from(name), mesh_handle);
-    debug!("Added {} to mesh library", name);
+    debug!("Added {name} to mesh library");
 
     Ok(MdrMesh {
       name: String::from(name),
@@ -200,10 +192,7 @@ impl MdrResourceManager {
   /// from GPU memory. Doing this will effectively invalidate any existing `MdrMesh` objects.
   pub fn unload_mesh(&mut self, name: &str) {
     if !self.mesh_library.contains_key(name) {
-      warn!(
-        "Cannot unload mesh {} because it is not in the library",
-        name
-      );
+      warn!("Cannot unload mesh {name} because it is not in the library",);
       return;
     }
 
@@ -223,7 +212,7 @@ impl MdrResourceManager {
   ) -> Result<MdrTexture, MdrResourceError> {
     // Check that the texture name isn't already in use
     if self.texture_library.contains_key(name) {
-      error!("Texture library already contains name: {}", name);
+      error!("Texture library already contains name: {name}");
       return Err(MdrResourceError::DuplicateTextureName);
     }
 
@@ -238,7 +227,7 @@ impl MdrResourceManager {
     self
       .texture_library
       .insert(String::from(name), texture_handle);
-    debug!("Added {} to texture library", name);
+    debug!("Added {name} to texture library");
 
     Ok(MdrTexture {
       name: String::from(name),
@@ -254,7 +243,7 @@ impl MdrResourceManager {
   ) -> Result<MdrTexture, MdrResourceError> {
     // Check that the texture name isn't already in use
     if self.texture_library.contains_key(name) {
-      error!("Texture library already contains name: {}", name);
+      error!("Texture library already contains name: {name}");
       return Err(MdrResourceError::DuplicateTextureName);
     }
 
@@ -292,7 +281,7 @@ impl MdrResourceManager {
     self
       .texture_library
       .insert(String::from(name), texture_handle);
-    debug!("Added {} to texture library", name);
+    debug!("Added {name} to texture library");
 
     Ok(MdrTexture {
       name: String::from(name),
@@ -315,10 +304,7 @@ impl MdrResourceManager {
   /// from GPU memory. Doing this will effectively invalidate any existing `MdrTexture` objects.
   pub fn unload_texture(&mut self, name: &str) {
     if !self.texture_library.contains_key(name) {
-      warn!(
-        "Cannot unload texture {} because it is not in the library",
-        name
-      );
+      warn!("Cannot unload texture {name} because it is not in the library",);
       return;
     }
 
@@ -338,7 +324,7 @@ impl MdrResourceManager {
   ) -> Result<MdrMaterial, MdrResourceError> {
     // Check that the mesh name isn't already in use
     if self.material_library.contains_key(name) {
-      error!("Material library already contains name: {}", name);
+      error!("Material library already contains name: {name}");
       return Err(MdrResourceError::DuplicateMaterialName);
     }
 
@@ -377,7 +363,7 @@ impl MdrResourceManager {
     self
       .material_library
       .insert(String::from(name), material_handle);
-    debug!("Added {} to material library", name);
+    debug!("Added {name} to material library");
 
     Ok(MdrMaterial {
       name: String::from(name),
@@ -400,10 +386,7 @@ impl MdrResourceManager {
   /// from GPU memory. Doing this will effectively invalidate any existing `MdrMaterial` objects.
   pub fn unload_material(&mut self, name: &str) {
     if !self.material_library.contains_key(name) {
-      warn!(
-        "Cannot unload material {} because it is not in the library",
-        name
-      );
+      warn!("Cannot unload material {name} because it is not in the library",);
       return;
     }
 
@@ -471,6 +454,15 @@ impl MdrResourceManager {
     image: DynamicImage,
     texture_create_info: MdrTextureCreateInfo,
   ) -> MdrGpuTextureHandle {
+    // Get command buffer for upload
+    // TODO - Is there another way to do this? Seems unnecessarily synchronous.
+    let mut command_buffer_builder = AutoCommandBufferBuilder::primary(
+      &self.command_buffer_allocator,
+      self.queue.queue_family_index(),
+      CommandBufferUsage::OneTimeSubmit,
+    )
+    .unwrap();
+
     // Get image parameters
     let dimensions = ImageDimensions::Dim2d {
       width: image.width(),
@@ -479,26 +471,28 @@ impl MdrResourceManager {
     };
 
     // Handle intended color use types provided by user
-    let (immutable_image, upload_future) = match texture_create_info.color_type {
+    let immutable_image = match texture_create_info.color_type {
       // SRGBA images are in standard (gamma-corrected) color space.
       // They are used for images that will be shown to the user
       MdrColorType::SRGBA => ImmutableImage::from_iter(
+        &self.memory_allocator,
         image.to_rgba8().into_raw(),
         dimensions,
         MipmapsCount::One,
         Format::R8G8B8A8_SRGB,
-        self.queue.clone(),
+        &mut command_buffer_builder,
       )
       .unwrap(),
 
       // SRGB images are in standard color space, too, but with just the R, G, and B channels.
       // They are also used for images that will be shown to the user
       MdrColorType::SRGB => ImmutableImage::from_iter(
+        &self.memory_allocator,
         image.to_rgb8().into_raw(),
         dimensions,
         MipmapsCount::One,
         Format::R8G8B8_SRGB,
-        self.queue.clone(),
+        &mut command_buffer_builder,
       )
       .unwrap(),
 
@@ -507,18 +501,18 @@ impl MdrResourceManager {
       // TODO: Currently we're super wasteful of memory because we use RGBA even when there isn't
       // a meaningful alpha channel. We should start using texture compression, which will fix this.
       MdrColorType::NonColorData => ImmutableImage::from_iter(
+        &self.memory_allocator,
         image.to_rgba8().into_raw(),
         dimensions,
         MipmapsCount::One,
         Format::R8G8B8A8_UNORM,
-        self.queue.clone(),
+        &mut command_buffer_builder,
       )
       .unwrap(),
     };
 
     let image_view = ImageView::new_default(immutable_image).unwrap();
     let sampler = self.get_sampler(texture_create_info.sampler_mode);
-    self.join_texture_future(upload_future);
 
     MdrGpuTextureHandle {
       image_view,
@@ -575,10 +569,8 @@ impl MdrResourceManager {
     sampler
   }
 
-  fn join_texture_future(
-    &mut self,
-    texture_future: CommandBufferExecFuture<NowFuture, PrimaryAutoCommandBuffer>,
-  ) {
+  // TODO - Remove if really not needed
+  fn join_texture_future(&mut self, texture_future: CommandBufferExecFuture<NowFuture>) {
     let new_future = match self.texture_load_futures.take() {
       Some(future) => future.join(texture_future).boxed(),
       None => texture_future.boxed(),
