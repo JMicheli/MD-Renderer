@@ -7,7 +7,7 @@ use vulkano::{
       depth_stencil::DepthStencilState,
       input_assembly::InputAssemblyState,
       rasterization::{CullMode, FrontFace, RasterizationState},
-      vertex_input::BuffersDefinition,
+      vertex_input::Vertex,
       viewport::{Viewport, ViewportState},
     },
     GraphicsPipeline,
@@ -69,7 +69,7 @@ impl MdrLightPipeline {
   ) -> Arc<GraphicsPipeline> {
     GraphicsPipeline::start()
       // Define what vertex structure the pipeline will expect
-      .vertex_input_state(BuffersDefinition::new().vertex::<MdrVertex_pos>())
+      .vertex_input_state(MdrVertex_pos::per_vertex())
       // Link the vertex shader
       .vertex_shader(vertex_shader.entry_point("main").unwrap(), ())
       // Input assembly settings (we use the defaults)

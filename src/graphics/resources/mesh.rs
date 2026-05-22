@@ -1,7 +1,5 @@
-use std::sync::Arc;
-
 use log::error;
-use vulkano::buffer::cpu_pool::CpuBufferPoolChunk;
+use vulkano::buffer::Subbuffer;
 
 use super::{vertex::MdrVertex_tan, MdrVertex_norm, MdrVertex_pos, MdrVertex_uv};
 
@@ -22,12 +20,12 @@ pub struct MdrMesh {
 }
 
 pub struct MdrGpuMeshHandle {
-  pub(crate) positions_chunk: Arc<CpuBufferPoolChunk<MdrVertex_pos>>,
-  pub(crate) normals_chunk: Arc<CpuBufferPoolChunk<MdrVertex_norm>>,
-  pub(crate) uvs_chunk: Arc<CpuBufferPoolChunk<MdrVertex_uv>>,
-  pub(crate) tangents_chunk: Arc<CpuBufferPoolChunk<MdrVertex_tan>>,
+  pub(crate) positions_buffer: Subbuffer<[MdrVertex_pos]>,
+  pub(crate) normals_buffer: Subbuffer<[MdrVertex_norm]>,
+  pub(crate) uvs_buffer: Subbuffer<[MdrVertex_uv]>,
+  pub(crate) tangents_buffer: Subbuffer<[MdrVertex_tan]>,
 
-  pub(crate) index_chunk: Arc<CpuBufferPoolChunk<u32>>,
+  pub(crate) index_buffer: Subbuffer<[u32]>,
   pub(crate) index_count: u32,
 }
 

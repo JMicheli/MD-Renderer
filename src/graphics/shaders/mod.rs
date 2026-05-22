@@ -9,11 +9,6 @@ pub mod mesh_vertex_shader {
   vulkano_shaders::shader! {
     ty: "vertex",
     path: "src/graphics/shaders/mesh.vert",
-    types_meta: {
-      use bytemuck::{Pod, Zeroable};
-
-      #[derive(Clone, Copy, Zeroable, Pod)]
-    },
   }
 }
 
@@ -21,11 +16,6 @@ pub mod mesh_fragment_shader {
   vulkano_shaders::shader! {
     ty: "fragment",
     path: "src/graphics/shaders/mesh.frag",
-    types_meta: {
-      use bytemuck::{Pod, Zeroable};
-
-      #[derive(Clone, Copy, Zeroable, Pod)]
-    },
   }
 }
 
@@ -42,11 +32,6 @@ pub mod light_vertex_shader {
   vulkano_shaders::shader! {
     ty: "vertex",
     path: "src/graphics/shaders/light.vert",
-    types_meta: {
-      use bytemuck::{Pod, Zeroable};
-
-      #[derive(Clone, Copy, Zeroable, Pod)]
-    },
   }
 }
 

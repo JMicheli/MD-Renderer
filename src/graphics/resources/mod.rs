@@ -9,17 +9,19 @@ use log::{debug, error, warn};
 use rustc_hash::{FxBuildHasher, FxHashMap};
 use std::{collections::HashMap, sync::Arc};
 use vulkano::{
-  buffer::{BufferUsage, CpuBufferPool},
+  buffer::{
+    allocator::{SubbufferAllocator, SubbufferAllocatorCreateInfo},
+    BufferContents, BufferUsage, Subbuffer,
+  },
   command_buffer::{
-    allocator::StandardCommandBufferAllocator, AutoCommandBufferBuilder, CommandBufferExecFuture,
-    CommandBufferUsage,
+    allocator::StandardCommandBufferAllocator, AutoCommandBufferBuilder, CommandBufferUsage,
   },
   device::{Device, Queue},
   format::Format,
   image::{view::ImageView, ImageDimensions, ImmutableImage, MipmapsCount},
   memory::allocator::{FreeListAllocator, GenericMemoryAllocator, MemoryUsage},
   sampler::{Filter, Sampler, SamplerAddressMode, SamplerCreateInfo},
-  sync::{GpuFuture, NowFuture},
+  sync::GpuFuture,
 };
 
 pub use color::{MdrColorType, MdrRgb, MdrRgba};
@@ -33,7 +35,6 @@ pub use vertex::{MdrVertex_norm, MdrVertex_pos, MdrVertex_uv};
 use self::{
   color::MdrColor,
   texture::{MdrSamplerMode, MdrTextureCreateInfo},
-  vertex::MdrVertex_tan,
 };
 
 /// Manages resources on the GPU by storing meshes, textures, and materials into libraries which
@@ -45,15 +46,12 @@ pub struct MdrResourceManager {
   command_buffer_allocator: Arc<StandardCommandBufferAllocator>,
   queue: Arc<Queue>,
 
-  vertex_pos_buffer_pool: CpuBufferPool<MdrVertex_pos>,
-  vertex_norm_buffer_pool: CpuBufferPool<MdrVertex_norm>,
-  vertex_uv_buffer_pool: CpuBufferPool<MdrVertex_uv>,
-  vertex_tan_buffer_pool: CpuBufferPool<MdrVertex_tan>,
-  index_buffer_pool: CpuBufferPool<u32>,
+  vertex_allocator: SubbufferAllocator,
+  index_allocator: SubbufferAllocator,
   mesh_library: HashMap<String, MdrGpuMeshHandle, FxBuildHasher>,
 
-  material_buffer_pool: CpuBufferPool<MdrMaterialUniformData>,
   material_library: HashMap<String, MdrGpuMaterialHandle, FxBuildHasher>,
+  material_allocator: SubbufferAllocator,
 
   texture_load_futures: Option<Box<dyn GpuFuture>>,
   sampler_palette: HashMap<MdrSamplerMode, Arc<Sampler>, FxBuildHasher>,
@@ -68,31 +66,35 @@ impl MdrResourceManager {
     queue: Arc<Queue>,
   ) -> Self {
     // Mesh memory handler initialization
-    let vertex_pos_buffer_pool = CpuBufferPool::vertex_buffer(memory_allocator.clone());
-    let vertex_norm_buffer_pool = CpuBufferPool::vertex_buffer(memory_allocator.clone());
-    let vertex_uv_buffer_pool = CpuBufferPool::vertex_buffer(memory_allocator.clone());
-    let vertex_tan_buffer_pool = CpuBufferPool::vertex_buffer(memory_allocator.clone());
-    let index_buffer_pool = CpuBufferPool::new(
+    let vertex_allocator = SubbufferAllocator::new(
       memory_allocator.clone(),
-      BufferUsage {
-        index_buffer: true,
+      SubbufferAllocatorCreateInfo {
+        buffer_usage: BufferUsage::VERTEX_BUFFER,
+        memory_usage: MemoryUsage::Upload,
         ..Default::default()
       },
-      MemoryUsage::Upload,
+    );
+    let index_allocator = SubbufferAllocator::new(
+      memory_allocator.clone(),
+      SubbufferAllocatorCreateInfo {
+        buffer_usage: BufferUsage::INDEX_BUFFER,
+        memory_usage: MemoryUsage::Upload,
+        ..Default::default()
+      },
     );
 
     let mesh_library = FxHashMap::<String, MdrGpuMeshHandle>::default();
 
     // Material memory handler initialization
-    let material_buffer_pool = CpuBufferPool::new(
-      memory_allocator.clone(),
-      BufferUsage {
-        uniform_buffer: true,
-        ..BufferUsage::empty()
-      },
-      MemoryUsage::Upload,
-    );
     let material_library = FxHashMap::<String, MdrGpuMaterialHandle>::default();
+    let material_allocator = SubbufferAllocator::new(
+      memory_allocator.clone(),
+      SubbufferAllocatorCreateInfo {
+        buffer_usage: BufferUsage::UNIFORM_BUFFER,
+        memory_usage: MemoryUsage::Upload,
+        ..Default::default()
+      },
+    );
 
     let sampler_palette = FxHashMap::<MdrSamplerMode, Arc<Sampler>>::default();
     let texture_library = FxHashMap::<String, MdrGpuTextureHandle>::default();
@@ -103,15 +105,12 @@ impl MdrResourceManager {
       command_buffer_allocator,
       queue,
 
-      vertex_pos_buffer_pool,
-      vertex_norm_buffer_pool,
-      vertex_uv_buffer_pool,
-      vertex_tan_buffer_pool,
-      index_buffer_pool,
+      vertex_allocator,
+      index_allocator,
       mesh_library,
 
-      material_buffer_pool,
       material_library,
+      material_allocator,
 
       texture_load_futures: None,
       sampler_palette,
@@ -426,25 +425,43 @@ impl MdrResourceManager {
   /// Uploads input `MdrMeshdata` to the GPU and returns an `MdrGpuMeshHandle` containing the
   /// vertex buffer, index buffer, and index count for the input data.
   fn upload_mesh_to_gpu(&mut self, mesh: MdrMeshData) -> MdrGpuMeshHandle {
-    let index_count = mesh.indices.len() as u32;
-    MdrGpuMeshHandle {
-      positions_chunk: self
-        .vertex_pos_buffer_pool
-        .from_iter(mesh.positions)
-        .unwrap(),
-      normals_chunk: self
-        .vertex_norm_buffer_pool
-        .from_iter(mesh.normals)
-        .unwrap(),
-      uvs_chunk: self.vertex_uv_buffer_pool.from_iter(mesh.uvs).unwrap(),
-      tangents_chunk: self
-        .vertex_tan_buffer_pool
-        .from_iter(mesh.tangents)
-        .unwrap(),
+    // Upload vertex data
+    let positions_buffer = self.upload_vertex_data(&mesh.positions);
+    let normals_buffer = self.upload_vertex_data(&mesh.normals);
+    let uvs_buffer = self.upload_vertex_data(&mesh.uvs);
+    let tangents_buffer = self.upload_vertex_data(&mesh.tangents);
 
-      index_chunk: self.index_buffer_pool.from_iter(mesh.indices).unwrap(),
+    // Upload index data
+    let index_buffer = self.upload_index_data(&mesh.indices);
+    let index_count = mesh.indices.len() as u32;
+
+    MdrGpuMeshHandle {
+      positions_buffer,
+      normals_buffer,
+      uvs_buffer,
+      tangents_buffer,
+
+      index_buffer,
       index_count,
     }
+  }
+
+  fn upload_vertex_data<T: Copy + BufferContents>(&self, data: &[T]) -> Subbuffer<[T]> {
+    let vertex_buffer = self
+      .vertex_allocator
+      .allocate_slice(data.len() as u64)
+      .unwrap();
+    vertex_buffer.write().unwrap().copy_from_slice(data);
+    vertex_buffer
+  }
+
+  fn upload_index_data(&self, indices: &[u32]) -> Subbuffer<[u32]> {
+    let index_buffer = self
+      .index_allocator
+      .allocate_slice(indices.len() as u64)
+      .unwrap();
+    index_buffer.write().unwrap().copy_from_slice(indices);
+    index_buffer
   }
 
   /// Uploads an input `image::DynamicImage` to the GPU  with settings defined by the `texture_create_info`.
@@ -529,11 +546,18 @@ impl MdrResourceManager {
     roughness_map: MdrGpuTextureHandle,
     normal_map: MdrGpuTextureHandle,
   ) -> MdrGpuMaterialHandle {
+    let material_data = [material_uniforms];
+    let material_buffer = self
+      .material_allocator
+      .allocate_slice(material_data.len() as u64)
+      .unwrap();
+    material_buffer
+      .write()
+      .unwrap()
+      .copy_from_slice(&material_data);
+
     MdrGpuMaterialHandle {
-      material_data: self
-        .material_buffer_pool
-        .from_iter([material_uniforms])
-        .unwrap(),
+      material_buffer,
       diffuse_map,
       roughness_map,
       normal_map,
@@ -567,16 +591,6 @@ impl MdrResourceManager {
     // Map the new sampler and return it
     self.sampler_palette.insert(sampler_mode, sampler.clone());
     sampler
-  }
-
-  // TODO - Remove if really not needed
-  fn join_texture_future(&mut self, texture_future: CommandBufferExecFuture<NowFuture>) {
-    let new_future = match self.texture_load_futures.take() {
-      Some(future) => future.join(texture_future).boxed(),
-      None => texture_future.boxed(),
-    };
-
-    self.texture_load_futures = Some(new_future);
   }
 }
 

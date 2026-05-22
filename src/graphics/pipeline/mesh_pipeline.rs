@@ -7,7 +7,7 @@ use vulkano::{
       depth_stencil::DepthStencilState,
       input_assembly::InputAssemblyState,
       rasterization::{CullMode, FrontFace, RasterizationState},
-      vertex_input::BuffersDefinition,
+      vertex_input::Vertex,
       viewport::{Viewport, ViewportState},
     },
     GraphicsPipeline,
@@ -76,17 +76,16 @@ impl MdrMeshPipeline {
   ) -> Arc<GraphicsPipeline> {
     GraphicsPipeline::start()
       // Define what vertex structure the pipeline will expect
-      .vertex_input_state(
-        BuffersDefinition::new()
-          // Position data, looks like [f32; 3] in memory
-          .vertex::<MdrVertex_pos>()
-          // Normal data, looks like [f32; 3] in memory
-          .vertex::<MdrVertex_norm>()
-          // Uv data, looks like [f32; 2] in memory
-          .vertex::<MdrVertex_uv>()
-          // Tangent space basis data, looks like [f32; 3] in memory
-          .vertex::<MdrVertex_tan>(),
-      )
+      .vertex_input_state([
+        // Position data, looks like [f32; 3] in memory
+        MdrVertex_pos::per_vertex(),
+        // // Normal data, looks like [f32; 3] in memory
+        MdrVertex_norm::per_vertex(),
+        // // UV data, looks like [f32; 2] in memory
+        MdrVertex_uv::per_vertex(),
+        // // Tangent space basis data, looks like [f32; 3] in memory
+        MdrVertex_tan::per_vertex(),
+      ])
       // Link the vertex shader
       .vertex_shader(vertex_shader.entry_point("main").unwrap(), ())
       // Input assembly settings (we use the defaults)

@@ -4,7 +4,7 @@ use std::sync::Arc;
 use winit::event_loop::EventLoop;
 
 use vulkano::{
-  buffer::{BufferUsage, CpuAccessibleBuffer},
+  buffer::{Buffer, BufferCreateInfo, BufferUsage, Subbuffer},
   command_buffer::{
     allocator::{StandardCommandBufferAllocator, StandardCommandBufferAllocatorCreateInfo},
     AutoCommandBufferBuilder, CommandBufferUsage, PrimaryAutoCommandBuffer, RenderPassBeginInfo,
@@ -15,12 +15,16 @@ use vulkano::{
   },
   device::{
     physical::{PhysicalDevice, PhysicalDeviceType},
-    Device, DeviceCreateInfo, DeviceExtensions, Queue, QueueCreateInfo,
+    Device, DeviceCreateInfo, DeviceExtensions, Queue, QueueCreateInfo, QueueFlags,
   },
   format::{ClearValue, Format},
   image::{view::ImageView, AttachmentImage, ImageAccess, ImageUsage, SwapchainImage},
   instance::{Instance, InstanceCreateInfo, InstanceExtensions},
-  memory::allocator::{FreeListAllocator, GenericMemoryAllocator, StandardMemoryAllocator},
+  memory::allocator::{
+    AllocationCreateInfo, FreeListAllocator, GenericMemoryAllocator, MemoryUsage,
+    StandardMemoryAllocator,
+  },
+  padded::Padded,
   pipeline::{graphics::viewport::Viewport, Pipeline, PipelineBindPoint},
   render_pass::{Framebuffer, FramebufferCreateInfo},
   swapchain::{self, AcquireError, Surface, Swapchain, SwapchainCreateInfo, SwapchainPresentInfo},
@@ -33,7 +37,7 @@ use crate::{
   graphics::{
     pipeline::MdrMeshPipeline,
     render_pass::MdrRenderPass,
-    shaders::mesh_vertex_shader::ty::{MdrPushConstants, MdrSceneData},
+    shaders::mesh_vertex_shader::{MdrPushConstants, MdrSceneData},
     window::{MdrWindow, MdrWindowOptions},
   },
   scene::MdrScene,
@@ -41,7 +45,7 @@ use crate::{
 
 use super::{
   resources::MdrResourceManager,
-  shaders::mesh_vertex_shader::ty::{CameraData, PointLightData},
+  shaders::mesh_vertex_shader::{CameraData, PointLightData},
 };
 
 /// A Vulkan graphics context, contains Vulkano members.
@@ -117,8 +121,8 @@ impl MdrGraphicsContext {
       StandardCommandBufferAllocatorCreateInfo {
         primary_buffer_count: 1,
         ..Default::default()
-      }),
-    );
+      },
+    ));
     let descriptor_set_allocator = StandardDescriptorSetAllocator::new(logical_device.clone());
 
     // Create swapchain
@@ -374,13 +378,13 @@ impl MdrGraphicsContext {
         .bind_vertex_buffers(
           0,
           (
-            mesh_handle.positions_chunk.clone(),
-            mesh_handle.normals_chunk.clone(),
-            mesh_handle.uvs_chunk.clone(),
-            mesh_handle.tangents_chunk.clone(),
+            mesh_handle.positions_buffer.clone(),
+            mesh_handle.normals_buffer.clone(),
+            mesh_handle.uvs_buffer.clone(),
+            mesh_handle.tangents_buffer.clone(),
           ),
         )
-        .bind_index_buffer(mesh_handle.index_chunk.clone());
+        .bind_index_buffer(mesh_handle.index_buffer.clone());
 
       // Upload material data
       // TODO Order by material and bind once per mat
@@ -395,7 +399,7 @@ impl MdrGraphicsContext {
           .clone(),
         [
           // Material uniform data
-          WriteDescriptorSet::buffer(0, material_handle.material_data.clone()),
+          WriteDescriptorSet::buffer(0, material_handle.material_buffer.clone()),
           // Diffuse map image sampler
           WriteDescriptorSet::image_view_sampler(
             1,
@@ -449,7 +453,7 @@ impl MdrGraphicsContext {
   fn upload_scene_data(
     memory_allocator: &StandardMemoryAllocator,
     scene: &MdrScene,
-  ) -> Arc<CpuAccessibleBuffer<MdrSceneData>> {
+  ) -> Subbuffer<MdrSceneData> {
     // Camera data
     let view_matrix = scene.camera.get_view_matrix();
     let projection_matrix = scene.camera.get_projection_matrix();
@@ -462,9 +466,7 @@ impl MdrGraphicsContext {
     );
     // Camera data object
     let camera = CameraData {
-      position: position_vector.into(),
-      _dummy0: [0; 4],
-
+      position: Padded(position_vector.into()),
       view: view_matrix.into(),
       proj: projection_matrix.into(),
     };
@@ -472,18 +474,20 @@ impl MdrGraphicsContext {
     // Lighting data
     let point_lights: [PointLightData; MAX_POINT_LIGHTS] =
       scene.lights.get_light_array().map(|light| PointLightData {
-        color: light.color.into(),
-        _dummy0: [0; 4],
+        color: Padded(light.color.into()),
         position: light.translation.into(),
         brightness: light.brightness,
       });
-    CpuAccessibleBuffer::from_data(
+    Buffer::from_data(
       memory_allocator,
-      BufferUsage {
-        storage_buffer: true,
-        ..BufferUsage::empty()
+      BufferCreateInfo {
+        usage: BufferUsage::STORAGE_BUFFER,
+        ..Default::default()
       },
-      false,
+      AllocationCreateInfo {
+        usage: MemoryUsage::Upload,
+        ..Default::default()
+      },
       MdrSceneData {
         camera,
         point_lights,
@@ -572,7 +576,8 @@ impl MdrGraphicsContext {
           .iter()
           .enumerate()
           .position(|(i, q)| {
-            q.queue_flags.graphics && p.surface_support(i as u32, &surface).unwrap_or(false)
+            q.queue_flags.intersects(QueueFlags::GRAPHICS)
+              && p.surface_support(i as u32, &surface).unwrap_or(false)
           })
           .map(|i| (p, i as u32))
       })
@@ -649,13 +654,10 @@ impl MdrGraphicsContext {
         min_image_count: surface_capabilities.min_image_count + 1,
         image_format: vk_image_format,
         image_extent: dimensions.into(),
-        image_usage: ImageUsage {
-          color_attachment: true,
-          ..ImageUsage::empty()
-        },
+        image_usage: ImageUsage::COLOR_ATTACHMENT,
         composite_alpha: surface_capabilities
           .supported_composite_alpha
-          .iter()
+          .into_iter()
           .next()
           .unwrap(),
         ..Default::default()
