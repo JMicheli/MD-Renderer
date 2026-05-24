@@ -1,3 +1,5 @@
+use vulkano::format::Format;
+
 pub enum MdrColor {
   RGB(MdrRgb),
   RGBA(MdrRgba),
@@ -113,8 +115,17 @@ pub enum MdrColorType {
   /// A Standardized RGB color, with pre-gamma RGB values.
   SRGB,
 
-  /// Raw RGB value data not intended to be directly rendered to a viewer.
+  /// Raw RGBA value data not intended to be directly rendered to a viewer.
   NonColorData,
+}
+
+impl MdrColorType {
+  pub fn component_count(&self) -> u32 {
+    match self {
+      Self::SRGBA | Self::NonColorData => 4,
+      Self::SRGB => 3,
+    }
+  }
 }
 
 impl From<MdrColor> for MdrColorType {
@@ -122,6 +133,16 @@ impl From<MdrColor> for MdrColorType {
     match color {
       MdrColor::RGB(_) => Self::SRGB,
       MdrColor::RGBA(_) => Self::SRGBA,
+    }
+  }
+}
+
+impl From<MdrColorType> for Format {
+  fn from(value: MdrColorType) -> Self {
+    match value {
+      MdrColorType::SRGBA => Format::R8G8B8A8_SRGB,
+      MdrColorType::SRGB => Format::R8G8B8_SRGB,
+      MdrColorType::NonColorData => Format::R8G8B8A8_UNORM,
     }
   }
 }

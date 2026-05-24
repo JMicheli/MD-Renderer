@@ -11,16 +11,21 @@ use std::{collections::HashMap, sync::Arc};
 use vulkano::{
   buffer::{
     allocator::{SubbufferAllocator, SubbufferAllocatorCreateInfo},
-    BufferContents, BufferUsage, Subbuffer,
+    Buffer, BufferContents, BufferCreateInfo, BufferUsage, Subbuffer,
   },
   command_buffer::{
     allocator::StandardCommandBufferAllocator, AutoCommandBufferBuilder, CommandBufferUsage,
+    CopyBufferToImageInfo, PrimaryCommandBufferAbstract,
   },
   device::{Device, Queue},
-  format::Format,
-  image::{view::ImageView, ImageDimensions, ImmutableImage, MipmapsCount},
-  memory::allocator::{FreeListAllocator, GenericMemoryAllocator, MemoryUsage},
-  sampler::{Filter, Sampler, SamplerAddressMode, SamplerCreateInfo},
+  image::{
+    sampler::{Filter, Sampler, SamplerAddressMode, SamplerCreateInfo},
+    view::ImageView,
+    Image, ImageCreateInfo, ImageType, ImageUsage,
+  },
+  memory::allocator::{
+    AllocationCreateInfo, FreeListAllocator, GenericMemoryAllocator, MemoryTypeFilter,
+  },
   sync::GpuFuture,
 };
 
@@ -42,7 +47,7 @@ use self::{
 /// references to the buffers in which their data is stored.
 pub struct MdrResourceManager {
   logical_device: Arc<Device>,
-  memory_allocator: Arc<GenericMemoryAllocator<Arc<FreeListAllocator>>>,
+  memory_allocator: Arc<GenericMemoryAllocator<FreeListAllocator>>,
   command_buffer_allocator: Arc<StandardCommandBufferAllocator>,
   queue: Arc<Queue>,
 
@@ -53,7 +58,7 @@ pub struct MdrResourceManager {
   material_library: HashMap<String, MdrGpuMaterialHandle, FxBuildHasher>,
   material_allocator: SubbufferAllocator,
 
-  texture_load_futures: Option<Box<dyn GpuFuture>>,
+  texture_transfer_futures: Option<Box<dyn GpuFuture>>,
   sampler_palette: HashMap<MdrSamplerMode, Arc<Sampler>, FxBuildHasher>,
   texture_library: HashMap<String, MdrGpuTextureHandle, FxBuildHasher>,
 }
@@ -61,7 +66,7 @@ pub struct MdrResourceManager {
 impl MdrResourceManager {
   pub fn new(
     logical_device: Arc<Device>,
-    memory_allocator: Arc<GenericMemoryAllocator<Arc<FreeListAllocator>>>,
+    memory_allocator: Arc<GenericMemoryAllocator<FreeListAllocator>>,
     command_buffer_allocator: Arc<StandardCommandBufferAllocator>,
     queue: Arc<Queue>,
   ) -> Self {
@@ -70,7 +75,8 @@ impl MdrResourceManager {
       memory_allocator.clone(),
       SubbufferAllocatorCreateInfo {
         buffer_usage: BufferUsage::VERTEX_BUFFER,
-        memory_usage: MemoryUsage::Upload,
+        memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
+          | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
         ..Default::default()
       },
     );
@@ -78,7 +84,8 @@ impl MdrResourceManager {
       memory_allocator.clone(),
       SubbufferAllocatorCreateInfo {
         buffer_usage: BufferUsage::INDEX_BUFFER,
-        memory_usage: MemoryUsage::Upload,
+        memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
+          | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
         ..Default::default()
       },
     );
@@ -91,7 +98,8 @@ impl MdrResourceManager {
       memory_allocator.clone(),
       SubbufferAllocatorCreateInfo {
         buffer_usage: BufferUsage::UNIFORM_BUFFER,
-        memory_usage: MemoryUsage::Upload,
+        memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
+          | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
         ..Default::default()
       },
     );
@@ -112,7 +120,7 @@ impl MdrResourceManager {
       material_library,
       material_allocator,
 
-      texture_load_futures: None,
+      texture_transfer_futures: None,
       sampler_palette,
       texture_library,
     }
@@ -397,7 +405,7 @@ impl MdrResourceManager {
   // //////////////////
 
   pub(crate) fn take_upload_futures(&mut self) -> Option<Box<dyn GpuFuture>> {
-    self.texture_load_futures.take()
+    self.texture_transfer_futures.take()
   }
 
   /// Gets a reference to the `MdrGpuMeshHandle` that corresponds to the input `MdrMesh`.
@@ -469,7 +477,7 @@ impl MdrResourceManager {
   fn upload_image_to_gpu(
     &mut self,
     image: DynamicImage,
-    texture_create_info: MdrTextureCreateInfo,
+    create_info: MdrTextureCreateInfo,
   ) -> MdrGpuTextureHandle {
     // Get command buffer for upload
     // TODO - Is there another way to do this? Seems unnecessarily synchronous.
@@ -480,56 +488,76 @@ impl MdrResourceManager {
     )
     .unwrap();
 
-    // Get image parameters
-    let dimensions = ImageDimensions::Dim2d {
-      width: image.width(),
-      height: image.height(),
-      array_layers: 1,
+    let extent = [image.width(), image.height(), 1];
+    let upload_buffer = Buffer::new_slice(
+      self.memory_allocator.clone(),
+      BufferCreateInfo {
+        usage: BufferUsage::TRANSFER_SRC,
+        ..Default::default()
+      },
+      AllocationCreateInfo {
+        memory_type_filter: MemoryTypeFilter::PREFER_HOST | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
+        ..Default::default()
+      },
+      (extent[0] * extent[1] * create_info.color_type.component_count()) as u64,
+    )
+    .unwrap();
+
+    // Upload image to buffer
+    let mut write_guard = upload_buffer.write().unwrap();
+    match create_info.color_type {
+      MdrColorType::SRGBA | MdrColorType::NonColorData => {
+        // SRGBA images are in standard (gamma-corrected) color space.
+        //
+        // NonColorData images are in linear color space, and their values are read as data, not rgb.
+        // They are used for images that inform shading algorithms (normal maps, roughness maps, etc.)
+        // TODO: Currently we're somewhat wasteful of memory because we use RGBA even when there isn't
+        // a meaningful alpha channel.
+        write_guard.copy_from_slice(&image.to_rgba8())
+      }
+      // SRGB images are in gamma-corrected color space, too, but with just the R, G, and B channels.
+      MdrColorType::SRGB => write_guard.copy_from_slice(&image.to_rgb8()),
+    }
+    drop(write_guard);
+
+    let image = Image::new(
+      self.memory_allocator.clone(),
+      ImageCreateInfo {
+        image_type: ImageType::Dim2d,
+        format: create_info.color_type.into(),
+        extent,
+        array_layers: 1,
+        mip_levels: 1,
+        usage: ImageUsage::TRANSFER_DST | ImageUsage::SAMPLED,
+        ..Default::default()
+      },
+      AllocationCreateInfo::default(),
+    )
+    .unwrap();
+
+    // Create command buffer containing command to transfer buffer to new image
+    command_buffer_builder
+      .copy_buffer_to_image(CopyBufferToImageInfo::buffer_image(
+        upload_buffer,
+        image.clone(),
+      ))
+      .unwrap();
+
+    // Create ImageView and Sampler for the image
+    let image_view = ImageView::new_default(image).unwrap();
+    let sampler = self.get_sampler(create_info.sampler_mode);
+
+    // Execute the transfer command
+    let future = command_buffer_builder
+      .build()
+      .unwrap()
+      .execute(self.queue.clone())
+      .unwrap();
+    // Store the future
+    self.texture_transfer_futures = match self.texture_transfer_futures.take() {
+      Some(cur) => Some(cur.join(future).boxed()),
+      None => Some(future.boxed()),
     };
-
-    // Handle intended color use types provided by user
-    let immutable_image = match texture_create_info.color_type {
-      // SRGBA images are in standard (gamma-corrected) color space.
-      // They are used for images that will be shown to the user
-      MdrColorType::SRGBA => ImmutableImage::from_iter(
-        &self.memory_allocator,
-        image.to_rgba8().into_raw(),
-        dimensions,
-        MipmapsCount::One,
-        Format::R8G8B8A8_SRGB,
-        &mut command_buffer_builder,
-      )
-      .unwrap(),
-
-      // SRGB images are in standard color space, too, but with just the R, G, and B channels.
-      // They are also used for images that will be shown to the user
-      MdrColorType::SRGB => ImmutableImage::from_iter(
-        &self.memory_allocator,
-        image.to_rgb8().into_raw(),
-        dimensions,
-        MipmapsCount::One,
-        Format::R8G8B8_SRGB,
-        &mut command_buffer_builder,
-      )
-      .unwrap(),
-
-      // NonColorData images are in linear color space, and their values are read as data, not rgb.
-      // They are used for images that inform shading algorithms (normal maps, roughness maps, etc.)
-      // TODO: Currently we're super wasteful of memory because we use RGBA even when there isn't
-      // a meaningful alpha channel. We should start using texture compression, which will fix this.
-      MdrColorType::NonColorData => ImmutableImage::from_iter(
-        &self.memory_allocator,
-        image.to_rgba8().into_raw(),
-        dimensions,
-        MipmapsCount::One,
-        Format::R8G8B8A8_UNORM,
-        &mut command_buffer_builder,
-      )
-      .unwrap(),
-    };
-
-    let image_view = ImageView::new_default(immutable_image).unwrap();
-    let sampler = self.get_sampler(texture_create_info.sampler_mode);
 
     MdrGpuTextureHandle {
       image_view,

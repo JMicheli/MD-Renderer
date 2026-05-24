@@ -1,9 +1,6 @@
 use std::sync::Arc;
 
-use vulkano::{
-  image::{view::ImageView, ImmutableImage},
-  sampler::Sampler,
-};
+use vulkano::image::{sampler::Sampler, view::ImageView};
 
 use super::MdrColorType;
 
@@ -20,7 +17,7 @@ pub struct MdrTextureCreateInfo<'a> {
 
 #[derive(Clone)]
 pub struct MdrGpuTextureHandle {
-  pub(crate) image_view: Arc<ImageView<ImmutableImage>>,
+  pub(crate) image_view: Arc<ImageView>,
   pub(crate) sampler: Arc<Sampler>,
 }
 

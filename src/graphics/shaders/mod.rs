@@ -1,9 +1,6 @@
 use std::sync::Arc;
 
-use vulkano::{
-  device::Device,
-  shader::{ShaderCreationError, ShaderModule},
-};
+use vulkano::{device::Device, shader::ShaderModule, Validated, VulkanError};
 
 pub mod mesh_vertex_shader {
   vulkano_shaders::shader! {
@@ -52,12 +49,12 @@ pub fn load_light_shaders(logical_device: &Arc<Device>) -> (Arc<ShaderModule>, A
 }
 
 fn validate_load_result(
-  output: Result<Arc<ShaderModule>, ShaderCreationError>,
+  output: Result<Arc<ShaderModule>, Validated<VulkanError>>,
 ) -> Arc<ShaderModule> {
   match output {
     Ok(value) => value,
     Err(e) => {
-      panic!("Failed to load shader module: {}", e);
+      panic!("Failed to load shader module: {e}");
     }
   }
 }

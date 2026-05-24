@@ -8,7 +8,7 @@ use vulkano::{
   command_buffer::{
     allocator::{StandardCommandBufferAllocator, StandardCommandBufferAllocatorCreateInfo},
     AutoCommandBufferBuilder, CommandBufferUsage, PrimaryAutoCommandBuffer, RenderPassBeginInfo,
-    SubpassContents,
+    SubpassBeginInfo, SubpassContents, SubpassEndInfo,
   },
   descriptor_set::{
     allocator::StandardDescriptorSetAllocator, PersistentDescriptorSet, WriteDescriptorSet,
@@ -18,18 +18,18 @@ use vulkano::{
     Device, DeviceCreateInfo, DeviceExtensions, Queue, QueueCreateInfo, QueueFlags,
   },
   format::{ClearValue, Format},
-  image::{view::ImageView, AttachmentImage, ImageAccess, ImageUsage, SwapchainImage},
+  image::{view::ImageView, Image, ImageCreateInfo, ImageUsage},
   instance::{Instance, InstanceCreateInfo, InstanceExtensions},
   memory::allocator::{
-    AllocationCreateInfo, FreeListAllocator, GenericMemoryAllocator, MemoryUsage,
+    AllocationCreateInfo, FreeListAllocator, GenericMemoryAllocator, MemoryTypeFilter,
     StandardMemoryAllocator,
   },
   padded::Padded,
   pipeline::{graphics::viewport::Viewport, Pipeline, PipelineBindPoint},
   render_pass::{Framebuffer, FramebufferCreateInfo},
-  swapchain::{self, AcquireError, Surface, Swapchain, SwapchainCreateInfo, SwapchainPresentInfo},
-  sync::{self, FlushError, GpuFuture},
-  VulkanLibrary,
+  swapchain::{self, Surface, Swapchain, SwapchainCreateInfo, SwapchainPresentInfo},
+  sync::{self, GpuFuture},
+  Validated, VulkanError, VulkanLibrary,
 };
 
 use crate::{
@@ -55,14 +55,14 @@ pub struct MdrGraphicsContext {
   logical_device: Arc<Device>,
   queue: Arc<Queue>,
   swapchain: Arc<Swapchain>,
-  swapchain_images: Vec<Arc<SwapchainImage>>,
+  swapchain_images: Vec<Arc<Image>>,
   render_pass: MdrRenderPass,
   viewport: Viewport,
   pipeline: MdrMeshPipeline,
   framebuffers: Vec<Arc<Framebuffer>>,
 
   pub(crate) resource_manager: MdrResourceManager,
-  memory_allocator: Arc<GenericMemoryAllocator<Arc<FreeListAllocator>>>,
+  memory_allocator: Arc<GenericMemoryAllocator<FreeListAllocator>>,
   command_buffer_allocator: Arc<StandardCommandBufferAllocator>,
   descriptor_set_allocator: StandardDescriptorSetAllocator,
 
@@ -81,7 +81,7 @@ impl MdrGraphicsContext {
     // Get a vulkan library
     let library = VulkanLibrary::new().expect("Failed to acquire vulkan library");
     // Create instance containing Vulkan function pointers
-    let instance = Self::create_instance(library, debug_enabled);
+    let instance = Self::create_instance(library, event_loop, debug_enabled);
     debug!("Created vulkan instance");
 
     // Create window
@@ -123,7 +123,8 @@ impl MdrGraphicsContext {
         ..Default::default()
       },
     ));
-    let descriptor_set_allocator = StandardDescriptorSetAllocator::new(logical_device.clone());
+    let descriptor_set_allocator =
+      StandardDescriptorSetAllocator::new(logical_device.clone(), Default::default());
 
     // Create swapchain
     let (swapchain, swapchain_images) =
@@ -199,12 +200,12 @@ impl MdrGraphicsContext {
     let (image_index, is_suboptimal, acquire_future) =
       match swapchain::acquire_next_image(self.swapchain.clone(), None) {
         Ok(r) => r,
-        Err(AcquireError::OutOfDate) => {
+        Err(Validated::Error(VulkanError::OutOfDate)) => {
           debug!("Swapchain out of date, flagging for recreation");
           self.should_recreate_swapchain = true;
           return; // No render this frame
         }
-        Err(e) => panic!("Failed to acquire next swapchain image: {:?}", e),
+        Err(e) => panic!("Failed to acquire next swapchain image: {e}"),
       };
 
     // The swapchain can be suboptimal but not out of date
@@ -245,7 +246,7 @@ impl MdrGraphicsContext {
 
     let end_of_frame_future = match future {
       Ok(future) => future.boxed(),
-      Err(FlushError::OutOfDate) => {
+      Err(Validated::Error(VulkanError::OutOfDate)) => {
         self.should_recreate_swapchain = true;
         sync::now(self.logical_device.clone()).boxed()
       }
@@ -282,7 +283,7 @@ impl MdrGraphicsContext {
 
         // Recreate viewport and pipeline
         trace!("Window resized, recreating pipeline");
-        self.viewport.dimensions = self.window.dimensions().into();
+        self.viewport.extent = self.window.dimensions().into();
         self.pipeline.recreate(&self.render_pass, &self.viewport);
 
         self.updated_aspect_ratio = true;
@@ -316,7 +317,7 @@ impl MdrGraphicsContext {
     pipeline: &MdrMeshPipeline,
     framebuffer: &Arc<Framebuffer>,
     scene: &MdrScene,
-  ) -> Arc<PrimaryAutoCommandBuffer> {
+  ) -> Arc<PrimaryAutoCommandBuffer<Arc<StandardCommandBufferAllocator>>> {
     // Create command buffer builder
     let mut builder = AutoCommandBufferBuilder::primary(
       &self.command_buffer_allocator,
@@ -334,11 +335,19 @@ impl MdrGraphicsContext {
     // Build command buffer
     // Begin render pass
     builder
-      .begin_render_pass(begin_render_pass_info, SubpassContents::Inline)
+      .begin_render_pass(
+        begin_render_pass_info,
+        SubpassBeginInfo {
+          contents: SubpassContents::Inline,
+          ..Default::default()
+        },
+      )
       .unwrap();
 
     // Bind object pipeline
-    builder.bind_pipeline_graphics(pipeline.graphics_pipeline.clone());
+    builder
+      .bind_pipeline_graphics(pipeline.graphics_pipeline.clone())
+      .unwrap();
 
     // Upload camera transforms
     let scene_buffer = Self::upload_scene_data(&self.memory_allocator, scene);
@@ -352,14 +361,17 @@ impl MdrGraphicsContext {
         .unwrap()
         .clone(),
       [WriteDescriptorSet::buffer(0, scene_buffer)],
+      [],
     )
     .unwrap();
-    builder.bind_descriptor_sets(
-      PipelineBindPoint::Graphics,
-      pipeline.graphics_pipeline.layout().clone(),
-      0,
-      scene_descriptor_set,
-    );
+    builder
+      .bind_descriptor_sets(
+        PipelineBindPoint::Graphics,
+        pipeline.graphics_pipeline.layout().clone(),
+        0,
+        scene_descriptor_set,
+      )
+      .unwrap();
 
     // Render objects
     for object in scene.scene_objects.iter() {
@@ -384,7 +396,9 @@ impl MdrGraphicsContext {
             mesh_handle.tangents_buffer.clone(),
           ),
         )
-        .bind_index_buffer(mesh_handle.index_buffer.clone());
+        .unwrap()
+        .bind_index_buffer(mesh_handle.index_buffer.clone())
+        .unwrap();
 
       // Upload material data
       // TODO Order by material and bind once per mat
@@ -419,21 +433,26 @@ impl MdrGraphicsContext {
             material_handle.normal_map.sampler.clone(),
           ),
         ],
+        [],
       )
       .unwrap();
-      builder.bind_descriptor_sets(
-        PipelineBindPoint::Graphics,
-        pipeline.graphics_pipeline.layout().clone(),
-        1,
-        material_descriptor_set.clone(),
-      );
+      builder
+        .bind_descriptor_sets(
+          PipelineBindPoint::Graphics,
+          pipeline.graphics_pipeline.layout().clone(),
+          1,
+          material_descriptor_set.clone(),
+        )
+        .unwrap();
 
       // Push constants for object transform
-      builder.push_constants(
-        pipeline.graphics_pipeline.layout().clone(),
-        0,
-        push_constants,
-      );
+      builder
+        .push_constants(
+          pipeline.graphics_pipeline.layout().clone(),
+          0,
+          push_constants,
+        )
+        .unwrap();
 
       // Draw call
       builder
@@ -442,8 +461,8 @@ impl MdrGraphicsContext {
     }
 
     // End render pass and build
-    builder.end_render_pass().unwrap();
-    let command_buffer = Arc::new(builder.build().unwrap());
+    builder.end_render_pass(SubpassEndInfo::default()).unwrap();
+    let command_buffer = builder.build().unwrap();
 
     trace!("Created command buffer");
     command_buffer
@@ -451,7 +470,7 @@ impl MdrGraphicsContext {
 
   /// Uploads data representing a scene's non-object data, i.e., the camera and lights.
   fn upload_scene_data(
-    memory_allocator: &StandardMemoryAllocator,
+    memory_allocator: &Arc<StandardMemoryAllocator>,
     scene: &MdrScene,
   ) -> Subbuffer<MdrSceneData> {
     // Camera data
@@ -479,13 +498,14 @@ impl MdrGraphicsContext {
         brightness: light.brightness,
       });
     Buffer::from_data(
-      memory_allocator,
+      memory_allocator.clone(),
       BufferCreateInfo {
         usage: BufferUsage::STORAGE_BUFFER,
         ..Default::default()
       },
       AllocationCreateInfo {
-        usage: MemoryUsage::Upload,
+        memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
+          | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
         ..Default::default()
       },
       MdrSceneData {
@@ -498,9 +518,13 @@ impl MdrGraphicsContext {
   }
 
   /// Create a Vulkan instance with optional debug extensions.
-  fn create_instance(library: Arc<VulkanLibrary>, debug_enabled: bool) -> Arc<Instance> {
+  fn create_instance(
+    library: Arc<VulkanLibrary>,
+    event_loop: &EventLoop<()>,
+    debug_enabled: bool,
+  ) -> Arc<Instance> {
     let required_extensions = {
-      let mut extensions = vulkano_win::required_extensions(&library);
+      let mut extensions = Surface::required_extensions(event_loop);
 
       // If debugging is enabled, add the debug utility extension
       if debug_enabled {
@@ -545,15 +569,12 @@ impl MdrGraphicsContext {
       library,
       InstanceCreateInfo {
         enabled_extensions: required_extensions,
-        enumerate_portability: true, // This bool makes MacOS work
         enabled_layers,
         ..Default::default()
       },
     ) {
       Ok(instance) => instance,
-      Err(e) => {
-        panic!("Failed to create instance: {e}");
-      }
+      Err(e) => panic!("Failed to create instance: {e}"),
     }
   }
 
@@ -632,7 +653,7 @@ impl MdrGraphicsContext {
     window: &Arc<MdrWindow>,
     logical_device: &Arc<Device>,
     physical_device: &Arc<PhysicalDevice>,
-  ) -> (Arc<Swapchain>, Vec<Arc<SwapchainImage>>) {
+  ) -> (Arc<Swapchain>, Vec<Arc<Image>>) {
     // Retrieve surface capabilities with respect to the physical device
     let surface = &window.surface;
     let surface_capabilities = physical_device
@@ -640,12 +661,10 @@ impl MdrGraphicsContext {
       .expect("Failed to retrieve surface capabilities");
     // Get other settings
     let dimensions = window.dimensions();
-    let vk_image_format = Some(
-      physical_device
-        .surface_formats(surface, Default::default())
-        .unwrap()[0]
-        .0,
-    );
+    let vk_image_format = physical_device
+      .surface_formats(surface, Default::default())
+      .unwrap()[0]
+      .0;
 
     let swapchain_result = Swapchain::new(
       logical_device.clone(),
@@ -673,14 +692,23 @@ impl MdrGraphicsContext {
   }
 
   fn create_framebuffers(
-    memory_allocator: &GenericMemoryAllocator<Arc<FreeListAllocator>>,
-    swapchain_images: &Vec<Arc<SwapchainImage>>,
+    memory_allocator: &Arc<GenericMemoryAllocator<FreeListAllocator>>,
+    swapchain_images: &Vec<Arc<Image>>,
     render_pass: &MdrRenderPass,
   ) -> Vec<Arc<Framebuffer>> {
-    let dimensions = swapchain_images[0].dimensions().width_height();
+    let extent = swapchain_images[0].extent();
     // Create depth buffer
-    let depth_buffer_image =
-      AttachmentImage::transient(memory_allocator, dimensions, Format::D16_UNORM).unwrap();
+    let depth_buffer_image = Image::new(
+      memory_allocator.clone(),
+      ImageCreateInfo {
+        extent,
+        format: Format::D16_UNORM,
+        usage: ImageUsage::TRANSIENT_ATTACHMENT | ImageUsage::DEPTH_STENCIL_ATTACHMENT,
+        ..Default::default()
+      },
+      AllocationCreateInfo::default(),
+    )
+    .unwrap();
     let depth_buffer_view = ImageView::new_default(depth_buffer_image).unwrap();
 
     // Create and return framebuffers
