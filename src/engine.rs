@@ -6,9 +6,8 @@ use winit::{event::WindowEvent, event_loop::ActiveEventLoop};
 use crate::{
   application::MdrRunOptions,
   graphics::{MdrGraphicsContext, MdrResourceManager},
-  input::{MdrInputContext, MdrInputState},
+  input::MdrInputContext,
   scene::MdrScene,
-  update::MdrUpdateContext,
   MdrApplication,
 };
 
@@ -17,7 +16,6 @@ pub struct MdrEngine {
 
   graphics_context: MdrGraphicsContext,
   input_context: MdrInputContext,
-  update_context: MdrUpdateContext,
 
   last_update: Instant,
 }
@@ -29,18 +27,12 @@ impl MdrEngine {
 
       graphics_context: MdrGraphicsContext::new(event_loop, options.debug),
       input_context: MdrInputContext::new(),
-      update_context: MdrUpdateContext::new(),
-
       last_update: Instant::now(),
     }
   }
 
   pub fn manage_resources(&mut self) -> &mut MdrResourceManager {
     &mut self.graphics_context.resource_manager
-  }
-
-  pub fn set_update_function(&mut self, f: Box<dyn FnMut(&mut MdrScene, &MdrInputState, f32)>) {
-    self.update_context.set_update_function(f);
   }
 
   pub fn handle_event(&mut self, event_loop: &ActiveEventLoop, event: WindowEvent) {
@@ -81,11 +73,7 @@ impl MdrEngine {
     }
   }
 
-  pub fn do_update(&mut self, application: &Box<dyn MdrApplication>) {
-    self
-      .update_context
-      .update_scene(&mut self.scene, &self.input_context.state);
-
+  pub fn do_update(&mut self, application: &dyn MdrApplication) {
     let current_instant = Instant::now();
     let dt = (current_instant - self.last_update).as_secs_f32();
 

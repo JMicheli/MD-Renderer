@@ -49,7 +49,7 @@ impl MdrWindow {
 
   /// Returns the dimensions (`extent` in Vulkan terminology) of the window.
   pub fn dimensions(&self) -> PhysicalSize<u32> {
-    return self.get_window().inner_size();
+    self.get_window().inner_size()
   }
 
   /// Returns whether or not the window has no visible drawing surface.

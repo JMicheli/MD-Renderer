@@ -133,11 +133,7 @@ impl MdrResourceManager {
   /// Load a mesh from an .obj file into the mesh library with a given name.
   /// `path` specifies a path to the .obj file.
   /// `name` is the name given to the mesh in the mesh library.
-  pub fn load_mesh_obj<'a>(
-    &mut self,
-    path: &str,
-    name: &'a str,
-  ) -> Result<MdrMesh, MdrResourceError> {
+  pub fn load_mesh_obj(&mut self, path: &str, name: &str) -> Result<MdrMesh, MdrResourceError> {
     // Check that the mesh name isn't already in use
     if self.mesh_library.contains_key(name) {
       error!("Mesh library already contains name: {name}");
@@ -159,7 +155,7 @@ impl MdrResourceManager {
     })
   }
 
-  pub fn load_mesh<'a>(&mut self, path: &str, name: &'a str) -> Result<MdrMesh, MdrResourceError> {
+  pub fn load_mesh(&mut self, path: &str, name: &str) -> Result<MdrMesh, MdrResourceError> {
     // open_model_assimp
 
     // Check that the mesh name isn't already in use

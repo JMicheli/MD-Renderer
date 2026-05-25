@@ -93,9 +93,9 @@ pub fn open_obj(path: &str) -> Option<MdrMeshData> {
 /// Calculates a matrix of tangent vector values from input vectors containing
 /// a mesh's positions, uvs, and indices.
 fn calculate_mesh_tangents(
-  mesh_positions: &Vec<MdrVertex_pos>,
-  mesh_uvs: &Vec<MdrVertex_uv>,
-  mesh_indices: &Vec<u32>,
+  mesh_positions: &[MdrVertex_pos],
+  mesh_uvs: &[MdrVertex_uv],
+  mesh_indices: &[u32],
 ) -> Vec<MdrVertex_tan> {
   // Allocate memory for averaging tangent values
   let mut tangent_vals = Vec::<Vec<MdrVertex_tan>>::with_capacity(mesh_positions.len());

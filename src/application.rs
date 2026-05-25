@@ -62,9 +62,9 @@ impl ApplicationHandler for InternalApplication {
     self.application.initialize(engine);
   }
 
-  fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+  fn about_to_wait(&mut self, _: &ActiveEventLoop) {
     if let Some(engine) = self.engine.as_mut() {
-      engine.do_update(&self.application);
+      engine.do_update(self.application.as_ref());
     }
   }
 

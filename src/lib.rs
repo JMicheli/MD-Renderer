@@ -4,7 +4,6 @@ mod engine;
 mod graphics;
 mod input;
 pub mod scene;
-mod update;
 
 pub mod logger;
 pub use application::{run_application, MdrApplication, MdrRunOptions};

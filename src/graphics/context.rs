@@ -357,7 +357,7 @@ impl MdrGraphicsContext {
         .graphics_pipeline
         .layout()
         .set_layouts()
-        .get(0)
+        .first()
         .unwrap()
         .clone(),
       [WriteDescriptorSet::buffer(0, scene_buffer)],
@@ -692,7 +692,7 @@ impl MdrGraphicsContext {
 
   fn create_framebuffers(
     memory_allocator: &Arc<GenericMemoryAllocator<FreeListAllocator>>,
-    swapchain_images: &Vec<Arc<Image>>,
+    swapchain_images: &[Arc<Image>],
     render_pass: &MdrRenderPass,
   ) -> Vec<Arc<Framebuffer>> {
     let extent = swapchain_images[0].extent();
@@ -711,7 +711,7 @@ impl MdrGraphicsContext {
     let depth_buffer_view = ImageView::new_default(depth_buffer_image).unwrap();
 
     // Create and return framebuffers
-    return swapchain_images
+    swapchain_images
       .iter()
       .map(|image| {
         let color_view = ImageView::new_default(image.clone()).unwrap();
@@ -725,7 +725,7 @@ impl MdrGraphicsContext {
         )
         .unwrap()
       })
-      .collect::<Vec<_>>();
+      .collect::<Vec<_>>()
   }
 
   /// Sets up a vector of futures corresponding to each framebuffer. These futures will be used to chain

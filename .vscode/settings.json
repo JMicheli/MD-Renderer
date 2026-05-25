@@ -1,15 +1,14 @@
 {
-  "rust-analyzer.checkOnSave.enable": true,
-
   "[rust]": {
     "editor.defaultFormatter": "rust-lang.rust-analyzer",
     "editor.formatOnSave": true,
   },
-
-  "glsllint.glslangValidatorArgs": "--client vulkan100",
+  "rust-analyzer.check.command": "clippy",
 
   "[markdown]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode",
-    "editor.formatOnSave": true
-  }
+    "prettier.proseWrap": "always",
+    "editor.formatOnSave": true,
+  },
+
 }

@@ -1,4 +1,4 @@
-use log::{info, trace};
+use log::trace;
 use winit::{
   dpi::PhysicalPosition,
   event::{ElementState, KeyEvent, MouseButton},

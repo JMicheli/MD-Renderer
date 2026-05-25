@@ -79,9 +79,7 @@ impl MdrLightSet {
   /// Returns an array containing a copy of the light set's data.
   pub fn get_light_array(&self) -> [MdrLight; MAX_POINT_LIGHTS] {
     let mut light_array = [MdrLight::unused(); MAX_POINT_LIGHTS];
-    for i in 0..self.light_count {
-      light_array[i] = self.lights[i];
-    }
+    light_array[..self.light_count].copy_from_slice(&self.lights[..self.light_count]);
 
     light_array
   }
