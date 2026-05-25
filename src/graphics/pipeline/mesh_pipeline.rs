@@ -90,7 +90,7 @@ impl MdrMeshPipeline {
       // Tangent space basis data, looks like [f32; 3] in memory
       MdrVertex_tan::per_vertex(),
     ]
-    .definition(&vertex_shader.info().input_interface)
+    .definition(&vertex_shader)
     .unwrap();
 
     let stages = [

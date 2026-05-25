@@ -1,7 +1,8 @@
-use log::trace;
+use log::{info, trace};
 use winit::{
   dpi::PhysicalPosition,
-  event::{ElementState, KeyboardInput, MouseButton, VirtualKeyCode},
+  event::{ElementState, KeyEvent, MouseButton},
+  keyboard::{KeyCode, PhysicalKey},
 };
 
 pub struct MdrInputState {
@@ -47,36 +48,31 @@ impl MdrInputContext {
     }
   }
 
-  pub fn keyboard_input(&mut self, input: &KeyboardInput) {
-    trace!("Keyboard event");
-    if input.virtual_keycode.is_none() {
-      return;
-    }
-
+  pub fn keyboard_input(&mut self, input: &KeyEvent) {
     match input.state {
-      ElementState::Pressed => match input.virtual_keycode.unwrap() {
-        VirtualKeyCode::Left => self.state.left = true,
-        VirtualKeyCode::Up => self.state.up = true,
-        VirtualKeyCode::Right => self.state.right = true,
-        VirtualKeyCode::Down => self.state.down = true,
+      ElementState::Pressed => match input.physical_key {
+        PhysicalKey::Code(KeyCode::ArrowLeft) => self.state.left = true,
+        PhysicalKey::Code(KeyCode::ArrowUp) => self.state.up = true,
+        PhysicalKey::Code(KeyCode::ArrowRight) => self.state.right = true,
+        PhysicalKey::Code(KeyCode::ArrowDown) => self.state.down = true,
 
-        VirtualKeyCode::W => self.state.w = true,
-        VirtualKeyCode::A => self.state.a = true,
-        VirtualKeyCode::S => self.state.s = true,
-        VirtualKeyCode::D => self.state.d = true,
+        PhysicalKey::Code(KeyCode::KeyW) => self.state.w = true,
+        PhysicalKey::Code(KeyCode::KeyA) => self.state.a = true,
+        PhysicalKey::Code(KeyCode::KeyS) => self.state.s = true,
+        PhysicalKey::Code(KeyCode::KeyD) => self.state.d = true,
 
         _ => (),
       },
-      ElementState::Released => match input.virtual_keycode.unwrap() {
-        VirtualKeyCode::Left => self.state.left = false,
-        VirtualKeyCode::Up => self.state.up = false,
-        VirtualKeyCode::Right => self.state.right = false,
-        VirtualKeyCode::Down => self.state.down = false,
+      ElementState::Released => match input.physical_key {
+        PhysicalKey::Code(KeyCode::ArrowLeft) => self.state.left = false,
+        PhysicalKey::Code(KeyCode::ArrowUp) => self.state.up = false,
+        PhysicalKey::Code(KeyCode::ArrowRight) => self.state.right = false,
+        PhysicalKey::Code(KeyCode::ArrowDown) => self.state.down = false,
 
-        VirtualKeyCode::W => self.state.w = false,
-        VirtualKeyCode::A => self.state.a = false,
-        VirtualKeyCode::S => self.state.s = false,
-        VirtualKeyCode::D => self.state.d = false,
+        PhysicalKey::Code(KeyCode::KeyW) => self.state.w = false,
+        PhysicalKey::Code(KeyCode::KeyA) => self.state.a = false,
+        PhysicalKey::Code(KeyCode::KeyS) => self.state.s = false,
+        PhysicalKey::Code(KeyCode::KeyD) => self.state.d = false,
 
         _ => (),
       },

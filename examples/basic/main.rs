@@ -1,18 +1,15 @@
 use std::env;
 
-use log::info;
-
-use mdr_engine::resources::texture::{MdrSamplerMode, MdrTextureCreateInfo};
-use mdr_engine::resources::{MdrColorType, MdrMaterialCreateInfo, MdrRgb};
 use mdr_engine::{
   logger,
-  scene::{MdrLight, MdrRenderObject},
-  MdrEngine, MdrEngineOptions,
+  scene::{MdrLight, MdrRenderObject, MdrScene},
+  MdrApplication, MdrEngine, MdrInputState, MdrRunOptions,
 };
 
 // Some functions and constants extraneous to the example
 mod utils;
 use utils::{asset, DEBUG_ENABLED, MDR_LOG_LEVEL};
+mod materials;
 
 // Consts for this example
 const LIGHT_MOV_SPEED: f32 = 1.0;
@@ -24,245 +21,72 @@ fn main() {
   env::set_var("MDR_LOG_LEVEL", MDR_LOG_LEVEL);
   logger::init_from_env().expect("Failed to initialize logger");
 
-  let opts = MdrEngineOptions {
-    debug: DEBUG_ENABLED,
-  };
-  let (mut engine, event_loop) = MdrEngine::new(opts);
+  mdr_engine::run_application(
+    ExampleApp::new(),
+    MdrRunOptions {
+      debug: DEBUG_ENABLED,
+    },
+  );
+}
 
-  // Create object meshes
-  let monkey_mesh = engine
-    .manage_resources()
-    .load_mesh(asset("meshes/suzanne.obj").as_str(), "monkey")
-    .unwrap();
-  let sphere_mesh = engine
-    .manage_resources()
-    .load_mesh(asset("meshes/sphere.obj").as_str(), "sphere")
-    .unwrap();
-  let cube_mesh = engine
-    .manage_resources()
-    .load_mesh(asset("meshes/cube.obj").as_str(), "cube")
-    .unwrap();
-  let plane_mesh = engine
-    .manage_resources()
-    .load_mesh(asset("meshes/plane.obj").as_str(), "plane")
-    .unwrap();
+struct ExampleApp;
 
-  // Create textures
-  // Metal plates
-  let metal_plates_base_color = engine
-    .manage_resources()
-    .load_texture(
-      MdrTextureCreateInfo {
-        source: asset("textures/metal_plates/base_color.png").as_str(),
-        color_type: MdrColorType::SRGBA,
-        sampler_mode: MdrSamplerMode::Repeat,
-      },
-      "metal_plates_base_color",
-    )
-    .unwrap();
-  let metal_plates_roughness = engine
-    .manage_resources()
-    .load_texture(
-      MdrTextureCreateInfo {
-        source: asset("textures/metal_plates/roughness.png").as_str(),
-        color_type: MdrColorType::NonColorData,
-        sampler_mode: MdrSamplerMode::Repeat,
-      },
-      "metal_plates_roughness",
-    )
-    .unwrap();
-  let metal_plates_normal = engine
-    .manage_resources()
-    .load_texture(
-      MdrTextureCreateInfo {
-        source: asset("textures/metal_plates/normal.png").as_str(),
-        color_type: MdrColorType::NonColorData,
-        sampler_mode: MdrSamplerMode::Repeat,
-      },
-      "metal_plates_normal",
-    )
-    .unwrap();
-  // Blue tiles
-  let blue_tiles_base_color = engine
-    .manage_resources()
-    .load_texture(
-      MdrTextureCreateInfo {
-        source: asset("textures/blue_tiles/base_color.png").as_str(),
-        color_type: MdrColorType::SRGBA,
-        sampler_mode: MdrSamplerMode::Repeat,
-      },
-      "blue_tiles_base_color",
-    )
-    .unwrap();
-  let blue_tiles_roughness = engine
-    .manage_resources()
-    .load_texture(
-      MdrTextureCreateInfo {
-        source: asset("textures/blue_tiles/roughness.png").as_str(),
-        color_type: MdrColorType::NonColorData,
-        sampler_mode: MdrSamplerMode::Repeat,
-      },
-      "blue_tiles_roughness",
-    )
-    .unwrap();
-  let blue_tiles_normal = engine
-    .manage_resources()
-    .load_texture(
-      MdrTextureCreateInfo {
-        source: asset("textures/blue_tiles/normal.png").as_str(),
-        color_type: MdrColorType::NonColorData,
-        sampler_mode: MdrSamplerMode::Repeat,
-      },
-      "blue_tiles_normal",
-    )
-    .unwrap();
-  // Wood planks
-  let wood_planks_base_color = engine
-    .manage_resources()
-    .load_texture(
-      MdrTextureCreateInfo {
-        source: asset("textures/wood_planks/base_color.png").as_str(),
-        color_type: MdrColorType::SRGBA,
-        sampler_mode: MdrSamplerMode::Repeat,
-      },
-      "wood_planks_base_color",
-    )
-    .unwrap();
-  let wood_planks_roughness = engine
-    .manage_resources()
-    .load_texture(
-      MdrTextureCreateInfo {
-        source: asset("textures/wood_planks/roughness.png").as_str(),
-        color_type: MdrColorType::NonColorData,
-        sampler_mode: MdrSamplerMode::Repeat,
-      },
-      "wood_planks_roughness",
-    )
-    .unwrap();
-  let wood_planks_normal = engine
-    .manage_resources()
-    .load_texture(
-      MdrTextureCreateInfo {
-        source: asset("textures/wood_planks/normal.png").as_str(),
-        color_type: MdrColorType::NonColorData,
-        sampler_mode: MdrSamplerMode::Repeat,
-      },
-      "wood_planks_normal",
-    )
-    .unwrap();
-  // Red fabric
-  let white_bricks_base_color = engine
-    .manage_resources()
-    .load_texture(
-      MdrTextureCreateInfo {
-        source: asset("textures/white_bricks/base_color.png").as_str(),
-        color_type: MdrColorType::SRGBA,
-        sampler_mode: MdrSamplerMode::Repeat,
-      },
-      "white_bricks_base_color",
-    )
-    .unwrap();
-  let white_bricks_roughness = engine
-    .manage_resources()
-    .load_texture(
-      MdrTextureCreateInfo {
-        source: asset("textures/white_bricks/roughness.png").as_str(),
-        color_type: MdrColorType::NonColorData,
-        sampler_mode: MdrSamplerMode::Repeat,
-      },
-      "white_bricks_roughness",
-    )
-    .unwrap();
-  let white_bricks_normal = engine
-    .manage_resources()
-    .load_texture(
-      MdrTextureCreateInfo {
-        source: asset("textures/white_bricks/normal.png").as_str(),
-        color_type: MdrColorType::NonColorData,
-        sampler_mode: MdrSamplerMode::Repeat,
-      },
-      "white_bricks_normal",
-    )
-    .unwrap();
+impl ExampleApp {
+  pub fn new() -> Self {
+    Self {}
+  }
+}
 
-  // Create object materials
-  let monkey_mat = engine
-    .manage_resources()
-    .create_material(
-      MdrMaterialCreateInfo {
-        diffuse: white_bricks_base_color,
-        roughness: white_bricks_roughness,
-        normal: white_bricks_normal,
-        specular_color: MdrRgb::white(),
-        shininess: 2.0,
-      },
-      "monkey_mat",
-    )
-    .unwrap();
-  let sphere_mat = engine
-    .manage_resources()
-    .create_material(
-      MdrMaterialCreateInfo {
-        diffuse: blue_tiles_base_color,
-        roughness: blue_tiles_roughness,
-        normal: blue_tiles_normal,
-        specular_color: MdrRgb::white(),
-        shininess: 20.0,
-      },
-      "sphere_mat",
-    )
-    .unwrap();
-  let plane_mat = engine
-    .manage_resources()
-    .create_material(
-      MdrMaterialCreateInfo {
-        diffuse: metal_plates_base_color,
-        roughness: metal_plates_roughness,
-        normal: metal_plates_normal,
-        specular_color: MdrRgb::white(),
-        shininess: 20.0,
-      },
-      "plane_mat",
-    )
-    .unwrap();
-  let cube_mat = engine
-    .manage_resources()
-    .create_material(
-      MdrMaterialCreateInfo {
-        diffuse: wood_planks_base_color,
-        roughness: wood_planks_roughness,
-        normal: wood_planks_normal,
-        specular_color: MdrRgb::white(),
-        shininess: 20.0,
-      },
-      "cube_mat",
-    )
-    .unwrap();
+impl MdrApplication for ExampleApp {
+  fn initialize(&self, engine: &mut MdrEngine) {
+    // Create object meshes
+    let monkey_mesh = engine
+      .manage_resources()
+      .load_mesh(asset("meshes/suzanne.obj").as_str(), "monkey")
+      .unwrap();
+    let sphere_mesh = engine
+      .manage_resources()
+      .load_mesh(asset("meshes/sphere.obj").as_str(), "sphere")
+      .unwrap();
+    let cube_mesh = engine
+      .manage_resources()
+      .load_mesh(asset("meshes/cube.obj").as_str(), "cube")
+      .unwrap();
+    let plane_mesh = engine
+      .manage_resources()
+      .load_mesh(asset("meshes/plane.obj").as_str(), "plane")
+      .unwrap();
 
-  // Add suzanne
-  let mut monkey = MdrRenderObject::new(monkey_mesh, monkey_mat);
-  monkey.transform.translation.set(0.0, 0.0, -2.0);
-  engine.scene.add_object(monkey);
-  // Add sphere
-  let mut sphere = MdrRenderObject::new(sphere_mesh, sphere_mat);
-  sphere.transform.translation.set(2.0, -2.0, -3.0);
-  engine.scene.add_object(sphere);
-  // Add cube
-  let mut cube = MdrRenderObject::new(cube_mesh, cube_mat);
-  cube.transform.translation.set(-2.0, -2.0, -3.0);
-  engine.scene.add_object(cube);
-  // Add ground plane
-  let mut ground_plane = MdrRenderObject::new(plane_mesh, plane_mat);
-  ground_plane.transform.translation.set(0.0, 1.0, 0.0);
-  engine.scene.add_object(ground_plane);
+    // Create object materials
+    let monkey_mat = materials::white_bricks("monkey_mat", engine);
+    let sphere_mat = materials::blue_tile("sphere_mat", engine);
+    let plane_mat = materials::metal_plates("plane_mat", engine);
+    let cube_mat = materials::wood_planks("cube_mat", engine);
 
-  // Add white light
-  let mut white_light = MdrLight::white(LIGHT_BRIGHTNESS);
-  white_light.translation.set(1.0, 3.0, 3.0);
-  engine.scene.lights.add_light(white_light);
+    // Add suzanne
+    let mut monkey = MdrRenderObject::new(monkey_mesh, monkey_mat);
+    monkey.transform.translation.set(0.0, 0.0, -2.0);
+    engine.scene.add_object(monkey);
+    // Add sphere
+    let mut sphere = MdrRenderObject::new(sphere_mesh, sphere_mat);
+    sphere.transform.translation.set(2.0, -2.0, -3.0);
+    engine.scene.add_object(sphere);
+    // Add cube
+    let mut cube = MdrRenderObject::new(cube_mesh, cube_mat);
+    cube.transform.translation.set(-2.0, -2.0, -3.0);
+    engine.scene.add_object(cube);
+    // Add ground plane
+    let mut ground_plane = MdrRenderObject::new(plane_mesh, plane_mat);
+    ground_plane.transform.translation.set(0.0, 1.0, 0.0);
+    engine.scene.add_object(ground_plane);
 
-  // Set update function
-  engine.set_update_function(Box::new(|scene, input_state, dt| {
+    // Add white light
+    let mut white_light = MdrLight::white(LIGHT_BRIGHTNESS);
+    white_light.translation.set(1.0, 3.0, 3.0);
+    engine.scene.lights.add_light(white_light);
+  }
+
+  fn update(&self, scene: &mut MdrScene, input_state: &MdrInputState, dt: f32) {
     // Camera WASD movement
     if input_state.w {
       let move_magnitude = dt * CAMERA_MOV_SPEED;
@@ -327,14 +151,7 @@ fn main() {
       scene.camera.transform.rotation.z += delta_x * CAMERA_ROT_SPEED;
       scene.camera.transform.rotation.x += delta_y * -CAMERA_ROT_SPEED;
     }
-  }));
+  }
 
-  // Start event loop
-  info!("Starting event loop");
-  event_loop.run(
-    move |event, _, control_flow| match engine.handle_event(event) {
-      Some(flow) => *control_flow = flow,
-      None => (),
-    },
-  );
+  fn shutdown(&self, _: &mut MdrEngine) {}
 }

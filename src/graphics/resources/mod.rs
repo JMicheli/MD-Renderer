@@ -482,7 +482,7 @@ impl MdrResourceManager {
     // Get command buffer for upload
     // TODO - Is there another way to do this? Seems unnecessarily synchronous.
     let mut command_buffer_builder = AutoCommandBufferBuilder::primary(
-      &self.command_buffer_allocator,
+      self.command_buffer_allocator.clone(),
       self.queue.queue_family_index(),
       CommandBufferUsage::OneTimeSubmit,
     )

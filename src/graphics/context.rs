@@ -1,7 +1,7 @@
 use log::{debug, error, info, trace};
 use nalgebra::Vector3;
 use std::sync::Arc;
-use winit::event_loop::EventLoop;
+use winit::event_loop::ActiveEventLoop;
 
 use vulkano::{
   buffer::{Buffer, BufferCreateInfo, BufferUsage, Subbuffer},
@@ -10,9 +10,7 @@ use vulkano::{
     AutoCommandBufferBuilder, CommandBufferUsage, PrimaryAutoCommandBuffer, RenderPassBeginInfo,
     SubpassBeginInfo, SubpassContents, SubpassEndInfo,
   },
-  descriptor_set::{
-    allocator::StandardDescriptorSetAllocator, PersistentDescriptorSet, WriteDescriptorSet,
-  },
+  descriptor_set::{allocator::StandardDescriptorSetAllocator, DescriptorSet, WriteDescriptorSet},
   device::{
     physical::{PhysicalDevice, PhysicalDeviceType},
     Device, DeviceCreateInfo, DeviceExtensions, Queue, QueueCreateInfo, QueueFlags,
@@ -64,7 +62,7 @@ pub struct MdrGraphicsContext {
   pub(crate) resource_manager: MdrResourceManager,
   memory_allocator: Arc<GenericMemoryAllocator<FreeListAllocator>>,
   command_buffer_allocator: Arc<StandardCommandBufferAllocator>,
-  descriptor_set_allocator: StandardDescriptorSetAllocator,
+  descriptor_set_allocator: Arc<StandardDescriptorSetAllocator>,
 
   window_was_resized: bool,
   should_recreate_swapchain: bool,
@@ -75,7 +73,7 @@ pub struct MdrGraphicsContext {
 
 impl MdrGraphicsContext {
   /// Create a new MD Renderer Graphics context with optional debug.
-  pub fn new(event_loop: &EventLoop<()>, debug_enabled: bool) -> Self {
+  pub fn new(event_loop: &ActiveEventLoop, debug_enabled: bool) -> Self {
     debug!("Creating graphics context");
 
     // Get a vulkan library
@@ -123,8 +121,10 @@ impl MdrGraphicsContext {
         ..Default::default()
       },
     ));
-    let descriptor_set_allocator =
-      StandardDescriptorSetAllocator::new(logical_device.clone(), Default::default());
+    let descriptor_set_allocator = Arc::new(StandardDescriptorSetAllocator::new(
+      logical_device.clone(),
+      Default::default(),
+    ));
 
     // Create swapchain
     let (swapchain, swapchain_images) =
@@ -317,10 +317,10 @@ impl MdrGraphicsContext {
     pipeline: &MdrMeshPipeline,
     framebuffer: &Arc<Framebuffer>,
     scene: &MdrScene,
-  ) -> Arc<PrimaryAutoCommandBuffer<Arc<StandardCommandBufferAllocator>>> {
+  ) -> Arc<PrimaryAutoCommandBuffer> {
     // Create command buffer builder
     let mut builder = AutoCommandBufferBuilder::primary(
-      &self.command_buffer_allocator,
+      self.command_buffer_allocator.clone(),
       queue.queue_family_index(),
       CommandBufferUsage::OneTimeSubmit,
     )
@@ -351,8 +351,8 @@ impl MdrGraphicsContext {
 
     // Upload camera transforms
     let scene_buffer = Self::upload_scene_data(&self.memory_allocator, scene);
-    let scene_descriptor_set = PersistentDescriptorSet::new(
-      &self.descriptor_set_allocator,
+    let scene_descriptor_set = DescriptorSet::new(
+      self.descriptor_set_allocator.clone(),
       pipeline
         .graphics_pipeline
         .layout()
@@ -402,8 +402,8 @@ impl MdrGraphicsContext {
 
       // Upload material data
       // TODO Order by material and bind once per mat
-      let material_descriptor_set = PersistentDescriptorSet::new(
-        &self.descriptor_set_allocator,
+      let material_descriptor_set = DescriptorSet::new(
+        self.descriptor_set_allocator.clone(),
         pipeline
           .graphics_pipeline
           .layout()
@@ -455,9 +455,8 @@ impl MdrGraphicsContext {
         .unwrap();
 
       // Draw call
-      builder
-        .draw_indexed(mesh_handle.index_count, 1, 0, 0, 0)
-        .unwrap();
+      // TODO - Why is this unsafe?
+      unsafe { builder.draw_indexed(mesh_handle.index_count, 1, 0, 0, 0) }.unwrap();
     }
 
     // End render pass and build
@@ -520,11 +519,11 @@ impl MdrGraphicsContext {
   /// Create a Vulkan instance with optional debug extensions.
   fn create_instance(
     library: Arc<VulkanLibrary>,
-    event_loop: &EventLoop<()>,
+    event_loop: &ActiveEventLoop,
     debug_enabled: bool,
   ) -> Arc<Instance> {
     let required_extensions = {
-      let mut extensions = Surface::required_extensions(event_loop);
+      let mut extensions = Surface::required_extensions(event_loop).unwrap();
 
       // If debugging is enabled, add the debug utility extension
       if debug_enabled {

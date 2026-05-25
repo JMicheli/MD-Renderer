@@ -4,8 +4,8 @@ use vulkano::{instance::Instance, pipeline::graphics::viewport::Viewport, swapch
 
 use winit::{
   dpi::{LogicalSize, PhysicalSize},
-  event_loop::EventLoop,
-  window::{Window, WindowBuilder},
+  event_loop::ActiveEventLoop,
+  window::Window,
 };
 
 pub struct MdrWindowOptions<'a> {
@@ -22,21 +22,20 @@ pub struct MdrWindow {
 impl MdrWindow {
   pub fn new(
     instance: &Arc<Instance>,
-    event_loop: &EventLoop<()>,
+    event_loop: &ActiveEventLoop,
     options: MdrWindowOptions,
   ) -> Arc<Self> {
     // Set up event loop and build window
-    let window = WindowBuilder::new()
+    let window_attributes = Window::default_attributes()
       .with_title(options.title)
       .with_inner_size(LogicalSize::new(
         f64::from(options.width),
         f64::from(options.height),
       ))
-      .with_resizable(options.resizable)
-      .build(event_loop)
-      .unwrap();
-    let surface = Surface::from_window(instance.clone(), Arc::new(window)).unwrap();
+      .with_resizable(options.resizable);
+    let window = event_loop.create_window(window_attributes).unwrap();
 
+    let surface = Surface::from_window(instance.clone(), Arc::new(window)).unwrap();
     Arc::new(Self { surface })
   }
 
@@ -61,7 +60,7 @@ impl MdrWindow {
   }
 
   /// Gets a reference to the window which the surface is a part of
-  fn get_window(&self) -> &Window {
+  pub fn get_window(&self) -> &Window {
     // TODO - Any safety improvements here? This feels a bit haphazard with the unwraps and downcast.
     self
       .surface

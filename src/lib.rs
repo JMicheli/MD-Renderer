@@ -1,3 +1,4 @@
+mod application;
 mod config;
 mod engine;
 mod graphics;
@@ -6,5 +7,7 @@ pub mod scene;
 mod update;
 
 pub mod logger;
-pub use engine::{MdrEngine, MdrEngineOptions};
+pub use application::{run_application, MdrApplication, MdrRunOptions};
+pub use engine::MdrEngine;
 pub use graphics::resources;
+pub use input::MdrInputState;

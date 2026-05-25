@@ -1,19 +1,16 @@
+use std::time::Instant;
+
 use log::{info, trace};
-use winit::{
-  event::{Event, WindowEvent},
-  event_loop::{ControlFlow, EventLoop},
-};
+use winit::{event::WindowEvent, event_loop::ActiveEventLoop};
 
 use crate::{
+  application::MdrRunOptions,
   graphics::{MdrGraphicsContext, MdrResourceManager},
   input::{MdrInputContext, MdrInputState},
   scene::MdrScene,
   update::MdrUpdateContext,
+  MdrApplication,
 };
-
-pub struct MdrEngineOptions {
-  pub debug: bool,
-}
 
 pub struct MdrEngine {
   pub scene: MdrScene,
@@ -21,21 +18,21 @@ pub struct MdrEngine {
   graphics_context: MdrGraphicsContext,
   input_context: MdrInputContext,
   update_context: MdrUpdateContext,
+
+  last_update: Instant,
 }
 
 impl MdrEngine {
-  pub fn new(options: MdrEngineOptions) -> (Self, EventLoop<()>) {
-    let event_loop = EventLoop::new();
-
-    let engine = Self {
+  pub fn new(event_loop: &ActiveEventLoop, options: &MdrRunOptions) -> Self {
+    Self {
       scene: MdrScene::new(),
 
-      graphics_context: MdrGraphicsContext::new(&event_loop, options.debug),
+      graphics_context: MdrGraphicsContext::new(event_loop, options.debug),
       input_context: MdrInputContext::new(),
       update_context: MdrUpdateContext::new(),
-    };
 
-    (engine, event_loop)
+      last_update: Instant::now(),
+    }
   }
 
   pub fn manage_resources(&mut self) -> &mut MdrResourceManager {
@@ -46,60 +43,64 @@ impl MdrEngine {
     self.update_context.set_update_function(f);
   }
 
-  pub fn handle_event(&mut self, event: Event<()>) -> Option<ControlFlow> {
+  pub fn handle_event(&mut self, event_loop: &ActiveEventLoop, event: WindowEvent) {
     match event {
-      Event::WindowEvent {
-        event: WindowEvent::CloseRequested,
-        ..
-      } => {
-        info!("Exiting");
-        Some(ControlFlow::Exit)
-      }
-      Event::WindowEvent {
-        event: WindowEvent::Resized(_),
-        ..
-      } => {
+      WindowEvent::Resized(_) => {
         trace!("Resized");
         self.graphics_context.notify_resized();
-        None
       }
-      Event::WindowEvent {
-        event: WindowEvent::MouseInput { state, button, .. },
-        ..
-      } => {
-        self.input_context.mouse_input(&state, &button);
-        None
+      WindowEvent::CloseRequested => {
+        info!("Exiting");
+        event_loop.exit();
       }
-      Event::WindowEvent {
-        event: WindowEvent::CursorMoved { position, .. },
-        ..
-      } => {
+      WindowEvent::Destroyed => {
+        // TODO - Figure out how to use this for shutdown?
+        info!("Window destroyed")
+      }
+      WindowEvent::KeyboardInput { event, .. } => {
+        self.input_context.keyboard_input(&event);
+      }
+      WindowEvent::CursorMoved { position, .. } => {
         self.input_context.mouse_moved_input(position);
-        None
       }
-      Event::WindowEvent {
-        event: WindowEvent::KeyboardInput { input, .. },
-        ..
-      } => {
-        self.input_context.keyboard_input(&input);
-        None
+      WindowEvent::MouseInput { state, button, .. } => {
+        self.input_context.mouse_input(&state, &button);
       }
-      Event::MainEventsCleared => {
-        self
-          .update_context
-          .update_scene(&mut self.scene, &self.input_context.state);
-        self.input_context.cleanup_after_update();
-        None
+      WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
+        // TODO - I think I may need to use this to fix a crash?
+        info!("Scale factor changed to {scale_factor}");
       }
-      Event::RedrawEventsCleared => {
+      WindowEvent::RedrawRequested => {
         self
           .graphics_context
           .update_scene_aspect_ratio(&mut self.scene);
 
         self.graphics_context.draw(&self.scene);
-        None
       }
-      _ => None,
+      _ => (),
     }
   }
+
+  pub fn do_update(&mut self, application: &Box<dyn MdrApplication>) {
+    self
+      .update_context
+      .update_scene(&mut self.scene, &self.input_context.state);
+
+    let current_instant = Instant::now();
+    let dt = (current_instant - self.last_update).as_secs_f32();
+
+    application.update(&mut self.scene, &self.input_context.state, dt);
+
+    self.last_update = current_instant;
+    self.graphics_context.window.get_window().request_redraw();
+    self.input_context.cleanup_after_update();
+  }
 }
+
+// Event::MainEventsCleared => {
+//   self
+//     .update_context
+//     .update_scene(&mut self.scene, &self.input_context.state);
+//   self.input_context.cleanup_after_update();
+//   None
+// }

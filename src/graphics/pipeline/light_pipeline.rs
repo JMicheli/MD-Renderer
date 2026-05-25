@@ -74,7 +74,7 @@ impl MdrLightPipeline {
     let vertex_shader = vertex_shader.entry_point("main").unwrap();
     let fragment_shader = fragment_shader.entry_point("main").unwrap();
     let vertex_input_state = MdrVertex_pos::per_vertex()
-      .definition(&vertex_shader.info().input_interface)
+      .definition(&vertex_shader)
       .unwrap();
 
     let stages = [
