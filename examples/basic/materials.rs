@@ -47,7 +47,7 @@ pub fn metal_plates(name: &str, engine: &mut MdrEngine) -> MdrMaterial {
   engine
     .manage_resources()
     .create_material(
-      MdrMaterialCreateInfo {
+      &MdrMaterialCreateInfo {
         diffuse: metal_plates_base_color,
         roughness: metal_plates_roughness,
         normal: metal_plates_normal,
@@ -98,7 +98,7 @@ pub fn blue_tile(name: &str, engine: &mut MdrEngine) -> MdrMaterial {
   engine
     .manage_resources()
     .create_material(
-      MdrMaterialCreateInfo {
+      &MdrMaterialCreateInfo {
         diffuse: blue_tiles_base_color,
         roughness: blue_tiles_roughness,
         normal: blue_tiles_normal,
@@ -149,7 +149,7 @@ pub fn wood_planks(name: &str, engine: &mut MdrEngine) -> MdrMaterial {
   engine
     .manage_resources()
     .create_material(
-      MdrMaterialCreateInfo {
+      &MdrMaterialCreateInfo {
         diffuse: wood_planks_base_color,
         roughness: wood_planks_roughness,
         normal: wood_planks_normal,
@@ -199,7 +199,7 @@ pub fn white_bricks(name: &str, engine: &mut MdrEngine) -> MdrMaterial {
   engine
     .manage_resources()
     .create_material(
-      MdrMaterialCreateInfo {
+      &MdrMaterialCreateInfo {
         diffuse: white_bricks_base_color,
         roughness: white_bricks_roughness,
         normal: white_bricks_normal,

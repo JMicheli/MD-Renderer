@@ -30,7 +30,7 @@ pub fn run_application(application: impl MdrApplication + 'static, options: MdrR
   EventLoop::new()
     .unwrap()
     .run_app(&mut InternalApplication::new(application, options))
-    .unwrap()
+    .unwrap();
 }
 
 /// This structure holds the winit application state and implements [`ApplicationHandler`]. It is
@@ -77,7 +77,7 @@ impl ApplicationHandler for InternalApplication {
     if let Some(engine) = self.engine.as_mut() {
       self.application.shutdown(engine);
     } else {
-      info!("Exiting without existing engine")
+      info!("Exiting without existing engine");
     }
   }
 }

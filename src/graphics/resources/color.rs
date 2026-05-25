@@ -120,7 +120,7 @@ pub enum MdrColorType {
 }
 
 impl MdrColorType {
-  pub fn component_count(&self) -> u32 {
+  pub const fn component_count(&self) -> u32 {
     match self {
       Self::SRGBA | Self::NonColorData => 4,
       Self::SRGB => 3,
@@ -140,9 +140,9 @@ impl From<MdrColor> for MdrColorType {
 impl From<MdrColorType> for Format {
   fn from(value: MdrColorType) -> Self {
     match value {
-      MdrColorType::SRGBA => Format::R8G8B8A8_SRGB,
-      MdrColorType::SRGB => Format::R8G8B8_SRGB,
-      MdrColorType::NonColorData => Format::R8G8B8A8_UNORM,
+      MdrColorType::SRGBA => Self::R8G8B8A8_SRGB,
+      MdrColorType::SRGB => Self::R8G8B8_SRGB,
+      MdrColorType::NonColorData => Self::R8G8B8A8_UNORM,
     }
   }
 }

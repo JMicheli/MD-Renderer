@@ -23,7 +23,7 @@ impl MdrWindow {
   pub fn new(
     instance: &Arc<Instance>,
     event_loop: &ActiveEventLoop,
-    options: MdrWindowOptions,
+    options: &MdrWindowOptions,
   ) -> Arc<Self> {
     // Set up event loop and build window
     let window_attributes = Window::default_attributes()

@@ -9,7 +9,7 @@ pub struct MdrRenderObject {
 }
 
 impl MdrRenderObject {
-  pub fn new(mesh: MdrMesh, material: MdrMaterial) -> Self {
+  pub const fn new(mesh: MdrMesh, material: MdrMaterial) -> Self {
     Self {
       mesh,
       transform: MdrTransform::identity(),

@@ -31,7 +31,7 @@ impl MdrEngine {
     }
   }
 
-  pub fn manage_resources(&mut self) -> &mut MdrResourceManager {
+  pub const fn manage_resources(&mut self) -> &mut MdrResourceManager {
     &mut self.graphics_context.resource_manager
   }
 
@@ -47,7 +47,7 @@ impl MdrEngine {
       }
       WindowEvent::Destroyed => {
         // TODO - Figure out how to use this for shutdown?
-        info!("Window destroyed")
+        info!("Window destroyed");
       }
       WindowEvent::KeyboardInput { event, .. } => {
         self.input_context.keyboard_input(&event);
@@ -56,7 +56,7 @@ impl MdrEngine {
         self.input_context.mouse_moved_input(position);
       }
       WindowEvent::MouseInput { state, button, .. } => {
-        self.input_context.mouse_input(&state, &button);
+        self.input_context.mouse_input(state, button);
       }
       WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
         // TODO - I think I may need to use this to fix a crash?

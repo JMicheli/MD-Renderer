@@ -27,7 +27,7 @@ pub struct MdrInputContext {
 }
 
 impl MdrInputContext {
-  pub fn new() -> Self {
+  pub const fn new() -> Self {
     Self {
       state: MdrInputState {
         left: false,
@@ -48,7 +48,7 @@ impl MdrInputContext {
     }
   }
 
-  pub fn keyboard_input(&mut self, input: &KeyEvent) {
+  pub const fn keyboard_input(&mut self, input: &KeyEvent) {
     match input.state {
       ElementState::Pressed => match input.physical_key {
         PhysicalKey::Code(KeyCode::ArrowLeft) => self.state.left = true,
@@ -79,7 +79,7 @@ impl MdrInputContext {
     }
   }
 
-  pub fn mouse_input(&mut self, state: &ElementState, button: &MouseButton) {
+  pub fn mouse_input(&mut self, state: ElementState, button: MouseButton) {
     trace!("Mouse event");
     match (button, state) {
       (MouseButton::Left, ElementState::Pressed) => {
@@ -108,8 +108,14 @@ impl MdrInputContext {
     self.state.mouse_position = new_position;
   }
 
-  pub fn cleanup_after_update(&mut self) {
+  pub const fn cleanup_after_update(&mut self) {
     // Zero mouse delta in case mouse has stopped moving
     self.state.mouse_delta = [0.0, 0.0];
+  }
+}
+
+impl Default for MdrInputContext {
+  fn default() -> Self {
+    Self::new()
   }
 }

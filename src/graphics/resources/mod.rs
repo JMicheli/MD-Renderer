@@ -43,8 +43,10 @@ use self::{
 };
 
 /// Manages resources on the GPU by storing meshes, textures, and materials into libraries which
-/// can be accessed by key. Objects in the scene only store these keys rather than maintaining
-/// references to the buffers in which their data is stored.
+/// can be accessed by key.
+///
+/// Objects in the scene only store these keys rather than maintaining references to the buffers
+/// in which their data is stored.
 pub struct MdrResourceManager {
   logical_device: Arc<Device>,
   memory_allocator: Arc<GenericMemoryAllocator<FreeListAllocator>>,
@@ -140,13 +142,12 @@ impl MdrResourceManager {
       return Err(MdrResourceError::DuplicateMeshName);
     }
 
-    let mesh_data = match mesh::open_obj(path) {
-      Some(mesh) => mesh,
-      None => return Err(MdrResourceError::ObjLoadError),
+    let Some(mesh_data) = mesh::open_obj(path) else {
+      return Err(MdrResourceError::ObjLoadError);
     };
     debug!("Loaded obj file: {path}");
 
-    let mesh_handle = self.upload_mesh_to_gpu(mesh_data);
+    let mesh_handle = self.upload_mesh_to_gpu(&mesh_data);
     self.mesh_library.insert(String::from(name), mesh_handle);
     debug!("Added {name} to mesh library");
 
@@ -164,13 +165,12 @@ impl MdrResourceManager {
       return Err(MdrResourceError::DuplicateMeshName);
     }
 
-    let mesh_data = match mesh::open_obj(path) {
-      Some(mesh) => mesh,
-      None => return Err(MdrResourceError::AssimpLoadError),
+    let Some(mesh_data) = mesh::open_obj(path) else {
+      return Err(MdrResourceError::AssimpLoadError);
     };
     debug!("Loaded obj file: {path}");
 
-    let mesh_handle = self.upload_mesh_to_gpu(mesh_data);
+    let mesh_handle = self.upload_mesh_to_gpu(&mesh_data);
     self.mesh_library.insert(String::from(name), mesh_handle);
     debug!("Added {name} to mesh library");
 
@@ -226,7 +226,7 @@ impl MdrResourceManager {
     };
 
     // Upload to GPU and catalogue texture in library
-    let texture_handle = self.upload_image_to_gpu(image, texture_create_info);
+    let texture_handle = self.upload_image_to_gpu(&image, texture_create_info);
     self
       .texture_library
       .insert(String::from(name), texture_handle);
@@ -274,7 +274,7 @@ impl MdrResourceManager {
 
     // Upload to GPU and catalogue texture in library
     let texture_handle = self.upload_image_to_gpu(
-      image,
+      &image,
       MdrTextureCreateInfo {
         source: "",
         color_type: MdrColorType::from(color),
@@ -322,7 +322,7 @@ impl MdrResourceManager {
   /// library under the key `name` for future use.
   pub fn create_material(
     &mut self,
-    material_create_info: MdrMaterialCreateInfo,
+    material_create_info: &MdrMaterialCreateInfo,
     name: &str,
   ) -> Result<MdrMaterial, MdrResourceError> {
     // Check that the mesh name isn't already in use
@@ -428,7 +428,7 @@ impl MdrResourceManager {
 
   /// Uploads input `MdrMeshdata` to the GPU and returns an `MdrGpuMeshHandle` containing the
   /// vertex buffer, index buffer, and index count for the input data.
-  fn upload_mesh_to_gpu(&mut self, mesh: MdrMeshData) -> MdrGpuMeshHandle {
+  fn upload_mesh_to_gpu(&self, mesh: &MdrMeshData) -> MdrGpuMeshHandle {
     // Upload vertex data
     let positions_buffer = self.upload_vertex_data(&mesh.positions);
     let normals_buffer = self.upload_vertex_data(&mesh.normals);
@@ -472,7 +472,7 @@ impl MdrResourceManager {
   /// Returns an `MdrGpuTextureHandle` containing the resulting image view and sampler.
   fn upload_image_to_gpu(
     &mut self,
-    image: DynamicImage,
+    image: &DynamicImage,
     create_info: MdrTextureCreateInfo,
   ) -> MdrGpuTextureHandle {
     // Get command buffer for upload
@@ -495,7 +495,7 @@ impl MdrResourceManager {
         memory_type_filter: MemoryTypeFilter::PREFER_HOST | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
         ..Default::default()
       },
-      (extent[0] * extent[1] * create_info.color_type.component_count()) as u64,
+      u64::from(extent[0] * extent[1] * create_info.color_type.component_count()),
     )
     .unwrap();
 
@@ -509,7 +509,7 @@ impl MdrResourceManager {
         // They are used for images that inform shading algorithms (normal maps, roughness maps, etc.)
         // TODO: Currently we're somewhat wasteful of memory because we use RGBA even when there isn't
         // a meaningful alpha channel.
-        write_guard.copy_from_slice(&image.to_rgba8())
+        write_guard.copy_from_slice(&image.to_rgba8());
       }
       // SRGB images are in gamma-corrected color space, too, but with just the R, G, and B channels.
       MdrColorType::SRGB => write_guard.copy_from_slice(&image.to_rgb8()),
@@ -564,7 +564,7 @@ impl MdrResourceManager {
   /// Uploads an input `MdrMaterialUniformData` to the GPU .
   /// Returns an `MdrGpuMaterialHandle` containing the resulting buffer.
   fn upload_material_to_gpu(
-    &mut self,
+    &self,
     material_uniforms: MdrMaterialUniformData,
     diffuse_map: MdrGpuTextureHandle,
     roughness_map: MdrGpuTextureHandle,

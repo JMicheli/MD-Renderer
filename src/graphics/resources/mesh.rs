@@ -133,7 +133,7 @@ fn calculate_mesh_tangents(
 
   // Create the final output by averaging our values
   let mut tangent_data = Vec::<MdrVertex_tan>::with_capacity(mesh_positions.len());
-  for vals in tangent_vals.iter() {
+  for vals in &tangent_vals {
     let mut sum: [f32; 3] = [0.0; 3];
     for tan in vals {
       sum[0] += tan.a_tangent[0];
@@ -144,7 +144,7 @@ fn calculate_mesh_tangents(
     let recip_len = 1.0 / (vals.len() as f32);
     tangent_data.push(MdrVertex_tan {
       a_tangent: [sum[0] / recip_len, sum[1] / recip_len, sum[2] / recip_len],
-    })
+    });
   }
 
   tangent_data
@@ -181,11 +181,11 @@ fn calculate_tangent(
   ];
 
   // Compute the fractional part of the tangent equation
-  let frac = 1.0 / (delta_uv1[0] * delta_uv2[1] - delta_uv2[0] * delta_uv1[1]);
+  let frac = 1.0 / delta_uv1[0].mul_add(delta_uv2[1], -(delta_uv2[0] * delta_uv1[1]));
   // Compute each component
-  let tan_x = frac * (delta_uv2[1] * edge1[0] - delta_uv1[1] * edge2[0]);
-  let tan_y = frac * (delta_uv2[1] * edge1[1] - delta_uv1[1] * edge2[1]);
-  let tan_z = frac * (delta_uv2[1] * edge1[2] - delta_uv1[1] * edge2[2]);
+  let tan_x = frac * delta_uv2[1].mul_add(edge1[0], -(delta_uv1[1] * edge2[0]));
+  let tan_y = frac * delta_uv2[1].mul_add(edge1[1], -(delta_uv1[1] * edge2[1]));
+  let tan_z = frac * delta_uv2[1].mul_add(edge1[2], -(delta_uv1[1] * edge2[2]));
 
   MdrVertex_tan {
     a_tangent: [tan_x, tan_y, tan_z],

@@ -42,7 +42,7 @@ pub struct MdrTranslation {
 }
 
 impl MdrTranslation {
-  pub fn set(&mut self, x: f32, y: f32, z: f32) {
+  pub const fn set(&mut self, x: f32, y: f32, z: f32) {
     self.x = x;
     self.y = y;
     self.z = z;
@@ -89,7 +89,7 @@ pub struct MdrRotation {
 }
 
 impl MdrRotation {
-  pub fn set(&mut self, x: f32, y: f32, z: f32) {
+  pub const fn set(&mut self, x: f32, y: f32, z: f32) {
     self.x = x;
     self.y = y;
     self.z = z;
@@ -124,7 +124,7 @@ pub struct MdrScale {
 }
 
 impl MdrScale {
-  pub fn set(&mut self, x: f32, y: f32, z: f32) {
+  pub const fn set(&mut self, x: f32, y: f32, z: f32) {
     self.x = x;
     self.y = y;
     self.z = z;

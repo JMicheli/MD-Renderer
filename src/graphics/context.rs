@@ -89,12 +89,12 @@ impl MdrGraphicsContext {
       resizable: true,
       title: "MD Renderer",
     };
-    let window = MdrWindow::new(&instance, event_loop, window_options);
+    let window = MdrWindow::new(&instance, event_loop, &window_options);
     debug!("Created window");
 
     // Select physical device and queue
     let (physical_device, queue_family_index) =
-      Self::pick_physical_device(&instance, window.surface.clone());
+      Self::pick_physical_device(&instance, &window.surface);
 
     let device_name = &physical_device.properties().device_name;
     let device_type = physical_device.properties().device_type;
@@ -259,7 +259,7 @@ impl MdrGraphicsContext {
     // Store future and index for this frame's completion
     self.frame_futures[image_index as usize] = Some(end_of_frame_future);
     self.previous_frame_index = image_index as usize;
-    trace!("Completed draw")
+    trace!("Completed draw");
   }
 
   /// Performs updates based on the render surface's size.
@@ -298,7 +298,7 @@ impl MdrGraphicsContext {
   }
 
   /// Set context to trigger size-dependent reinitialization
-  pub fn notify_resized(&mut self) {
+  pub const fn notify_resized(&mut self) {
     self.window_was_resized = true;
   }
 
@@ -374,7 +374,7 @@ impl MdrGraphicsContext {
       .unwrap();
 
     // Render objects
-    for object in scene.scene_objects.iter() {
+    for object in &scene.scene_objects {
       // Get handle to the mesh buffers from the resource manager
       let mesh_handle = self.resource_manager.get_mesh_handle(&object.mesh);
       // Get handle to the material buffer from the resource manager
@@ -551,14 +551,14 @@ impl MdrGraphicsContext {
         let mut available_layers_str = String::new();
         for layer in available_layers {
           let layer_str = format!("\t{}\n", layer.name());
-          available_layers_str.push_str(layer_str.as_str())
+          available_layers_str.push_str(layer_str.as_str());
         }
         available_layers_str.pop();
         debug!("Available layers: \n{}", available_layers_str.as_str());
 
         // Push validation layer
         output_layers.push("VK_LAYER_KHRONOS_validation".to_owned());
-        debug!("Enabled layer: VK_LAYER_KHRONOS_validation")
+        debug!("Enabled layer: VK_LAYER_KHRONOS_validation");
       }
 
       output_layers
@@ -580,7 +580,7 @@ impl MdrGraphicsContext {
   /// Select a physical device to use. Returns the device and associated queue family index.
   fn pick_physical_device(
     instance: &Arc<Instance>,
-    surface: Arc<Surface>,
+    surface: &Arc<Surface>,
   ) -> (Arc<PhysicalDevice>, u32) {
     let device_extensions = DeviceExtensions {
       khr_swapchain: true,
@@ -597,7 +597,7 @@ impl MdrGraphicsContext {
           .enumerate()
           .position(|(i, q)| {
             q.queue_flags.intersects(QueueFlags::GRAPHICS)
-              && p.surface_support(i as u32, &surface).unwrap_or(false)
+              && p.surface_support(i as u32, surface).unwrap_or(false)
           })
           .map(|i| (p, i as u32))
       })
@@ -610,12 +610,9 @@ impl MdrGraphicsContext {
         _ => 5,
       });
 
-    match device_creation_results {
-      Some(value) => value,
-      None => {
+    device_creation_results.unwrap_or_else(|| {
         panic!("Failed to find physical device and queue family.");
-      }
-    }
+      })
   }
 
   /// Create a Vulkan logical device and queue.
@@ -685,7 +682,7 @@ impl MdrGraphicsContext {
     match swapchain_result {
       Ok(value) => value,
       Err(e) => {
-        panic!("Failed to generate swapchain: {}", e);
+        panic!("Failed to generate swapchain: {e}");
       }
     }
   }

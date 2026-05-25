@@ -9,7 +9,7 @@ pub struct MdrLight {
 }
 
 impl MdrLight {
-  pub fn new(r: f32, g: f32, b: f32, brightness: f32) -> Self {
+  pub const fn new(r: f32, g: f32, b: f32, brightness: f32) -> Self {
     Self {
       color: MdrRgb { r, g, b },
       brightness,
@@ -18,7 +18,7 @@ impl MdrLight {
     }
   }
 
-  pub fn white(brightness: f32) -> Self {
+  pub const fn white(brightness: f32) -> Self {
     Self::new(1.0, 1.0, 1.0, brightness)
   }
 
@@ -50,9 +50,10 @@ impl MdrLightSet {
 
   /// Add a light to the scene's light set. Will panic if `MAX_POINT_LIGHTS` are already present.
   pub fn add_light(&mut self, light: MdrLight) {
-    if self.light_count == MAX_POINT_LIGHTS {
-      panic!("You added more than {MAX_POINT_LIGHTS} lights and now everything broke, be careful.",)
-    }
+    assert!(
+      self.light_count != MAX_POINT_LIGHTS,
+      "You added more than {MAX_POINT_LIGHTS} lights and now everything broke, be careful.",
+    );
 
     self.lights.push(light);
     self.light_count += 1;
@@ -85,7 +86,7 @@ impl MdrLightSet {
   }
 
   /// Get the number of lights in the set.
-  pub fn get_count(&self) -> u32 {
+  pub const fn get_count(&self) -> u32 {
     self.light_count as u32
   }
 }
