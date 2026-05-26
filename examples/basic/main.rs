@@ -1,14 +1,12 @@
-use std::env;
-
 use mdr_engine::{
-  scene::{MdrLight, MdrRenderObject, MdrScene},
   MdrApplication, MdrEngine, MdrInputState, MdrRunOptions,
+  scene::{MdrLight, MdrRenderObject, MdrScene},
 };
 
 // Some functions and constants extraneous to the example
-mod utils;
-use utils::{asset, DEBUG_ENABLED, LOG_LEVEL};
 mod materials;
+mod utils;
+use utils::{DEBUG_ENABLED, LOG_LEVEL, asset};
 
 // Consts for this example
 const LIGHT_MOV_SPEED: f32 = 1.0;
@@ -17,6 +15,7 @@ const CAMERA_MOV_SPEED: f32 = 0.5;
 const CAMERA_ROT_SPEED: f32 = 0.01;
 
 fn main() {
+  // Set up logging
   let subscriber = tracing_subscriber::fmt()
     .with_max_level(LOG_LEVEL)
     .without_time()
@@ -25,7 +24,7 @@ fn main() {
   tracing::subscriber::set_global_default(subscriber).unwrap();
 
   mdr_engine::run_application(
-    ExampleApp::new(),
+    ExampleApp {},
     MdrRunOptions {
       debug: DEBUG_ENABLED,
     },
@@ -33,12 +32,6 @@ fn main() {
 }
 
 struct ExampleApp;
-
-impl ExampleApp {
-  pub fn new() -> Self {
-    Self {}
-  }
-}
 
 impl MdrApplication for ExampleApp {
   fn initialize(&self, engine: &mut MdrEngine) {
