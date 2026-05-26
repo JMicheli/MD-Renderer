@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{path::Path, sync::Arc};
 
 use vulkano::image::{sampler::Sampler, view::ImageView};
 
@@ -10,7 +10,7 @@ pub struct MdrTexture {
 }
 
 pub struct MdrTextureCreateInfo<'a> {
-  pub source: &'a str,
+  pub source: &'a Path,
   pub color_type: MdrColorType,
   pub sampler_mode: MdrSamplerMode,
 }

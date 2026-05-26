@@ -3,11 +3,11 @@ use std::time::Instant;
 use winit::{event::WindowEvent, event_loop::ActiveEventLoop};
 
 use crate::{
+  MdrApplication,
   application::MdrRunOptions,
   graphics::{MdrGraphicsContext, MdrResourceManager},
   input::MdrInputContext,
   scene::MdrScene,
-  MdrApplication,
 };
 
 pub struct MdrEngine {

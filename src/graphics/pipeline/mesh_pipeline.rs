@@ -3,7 +3,9 @@ use std::sync::Arc;
 use vulkano::{
   device::Device,
   pipeline::{
+    GraphicsPipeline, PipelineLayout, PipelineShaderStageCreateInfo,
     graphics::{
+      GraphicsPipelineCreateInfo,
       color_blend::{ColorBlendAttachmentState, ColorBlendState},
       depth_stencil::{DepthState, DepthStencilState},
       input_assembly::InputAssemblyState,
@@ -11,10 +13,8 @@ use vulkano::{
       rasterization::{CullMode, FrontFace, RasterizationState},
       vertex_input::{Vertex, VertexDefinition},
       viewport::{Viewport, ViewportState},
-      GraphicsPipelineCreateInfo,
     },
     layout::PipelineDescriptorSetLayoutCreateInfo,
-    GraphicsPipeline, PipelineLayout, PipelineShaderStageCreateInfo,
   },
   shader::ShaderModule,
 };

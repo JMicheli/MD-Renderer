@@ -1,6 +1,6 @@
 use vulkano::buffer::Subbuffer;
 
-use super::{color::MdrRgb, MdrGpuTextureHandle, MdrTexture};
+use super::{MdrGpuTextureHandle, MdrTexture, color::MdrRgb};
 
 pub use crate::graphics::shaders::mesh_fragment_shader::MdrMaterialUniformData;
 

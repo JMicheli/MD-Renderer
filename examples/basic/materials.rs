@@ -1,9 +1,9 @@
 use mdr_engine::{
-  resources::{
-    texture::{MdrSamplerMode, MdrTextureCreateInfo},
-    MdrColorType, MdrMaterial, MdrMaterialCreateInfo, MdrRgb,
-  },
   MdrEngine,
+  resources::{
+    MdrColorType, MdrMaterial, MdrMaterialCreateInfo, MdrRgb,
+    texture::{MdrSamplerMode, MdrTextureCreateInfo},
+  },
 };
 
 use crate::utils::asset;
@@ -14,7 +14,7 @@ pub fn metal_plates(name: &str, engine: &mut MdrEngine) -> MdrMaterial {
     .manage_resources()
     .load_texture(
       MdrTextureCreateInfo {
-        source: asset("textures/metal_plates/base_color.png").as_str(),
+        source: &asset("textures/metal_plates/base_color.png"),
         color_type: MdrColorType::SRGBA,
         sampler_mode: MdrSamplerMode::Repeat,
       },
@@ -25,7 +25,7 @@ pub fn metal_plates(name: &str, engine: &mut MdrEngine) -> MdrMaterial {
     .manage_resources()
     .load_texture(
       MdrTextureCreateInfo {
-        source: asset("textures/metal_plates/roughness.png").as_str(),
+        source: &asset("textures/metal_plates/roughness.png"),
         color_type: MdrColorType::NonColorData,
         sampler_mode: MdrSamplerMode::Repeat,
       },
@@ -36,7 +36,7 @@ pub fn metal_plates(name: &str, engine: &mut MdrEngine) -> MdrMaterial {
     .manage_resources()
     .load_texture(
       MdrTextureCreateInfo {
-        source: asset("textures/metal_plates/normal.png").as_str(),
+        source: &asset("textures/metal_plates/normal.png"),
         color_type: MdrColorType::NonColorData,
         sampler_mode: MdrSamplerMode::Repeat,
       },
@@ -65,7 +65,7 @@ pub fn blue_tile(name: &str, engine: &mut MdrEngine) -> MdrMaterial {
     .manage_resources()
     .load_texture(
       MdrTextureCreateInfo {
-        source: asset("textures/blue_tiles/base_color.png").as_str(),
+        source: &asset("textures/blue_tiles/base_color.png"),
         color_type: MdrColorType::SRGBA,
         sampler_mode: MdrSamplerMode::Repeat,
       },
@@ -76,7 +76,7 @@ pub fn blue_tile(name: &str, engine: &mut MdrEngine) -> MdrMaterial {
     .manage_resources()
     .load_texture(
       MdrTextureCreateInfo {
-        source: asset("textures/blue_tiles/roughness.png").as_str(),
+        source: &asset("textures/blue_tiles/roughness.png"),
         color_type: MdrColorType::NonColorData,
         sampler_mode: MdrSamplerMode::Repeat,
       },
@@ -87,7 +87,7 @@ pub fn blue_tile(name: &str, engine: &mut MdrEngine) -> MdrMaterial {
     .manage_resources()
     .load_texture(
       MdrTextureCreateInfo {
-        source: asset("textures/blue_tiles/normal.png").as_str(),
+        source: &asset("textures/blue_tiles/normal.png"),
         color_type: MdrColorType::NonColorData,
         sampler_mode: MdrSamplerMode::Repeat,
       },
@@ -116,7 +116,7 @@ pub fn wood_planks(name: &str, engine: &mut MdrEngine) -> MdrMaterial {
     .manage_resources()
     .load_texture(
       MdrTextureCreateInfo {
-        source: asset("textures/wood_planks/base_color.png").as_str(),
+        source: &asset("textures/wood_planks/base_color.png"),
         color_type: MdrColorType::SRGBA,
         sampler_mode: MdrSamplerMode::Repeat,
       },
@@ -127,7 +127,7 @@ pub fn wood_planks(name: &str, engine: &mut MdrEngine) -> MdrMaterial {
     .manage_resources()
     .load_texture(
       MdrTextureCreateInfo {
-        source: asset("textures/wood_planks/roughness.png").as_str(),
+        source: &asset("textures/wood_planks/roughness.png"),
         color_type: MdrColorType::NonColorData,
         sampler_mode: MdrSamplerMode::Repeat,
       },
@@ -138,7 +138,7 @@ pub fn wood_planks(name: &str, engine: &mut MdrEngine) -> MdrMaterial {
     .manage_resources()
     .load_texture(
       MdrTextureCreateInfo {
-        source: asset("textures/wood_planks/normal.png").as_str(),
+        source: &asset("textures/wood_planks/normal.png"),
         color_type: MdrColorType::NonColorData,
         sampler_mode: MdrSamplerMode::Repeat,
       },
@@ -166,7 +166,7 @@ pub fn white_bricks(name: &str, engine: &mut MdrEngine) -> MdrMaterial {
     .manage_resources()
     .load_texture(
       MdrTextureCreateInfo {
-        source: asset("textures/white_bricks/base_color.png").as_str(),
+        source: &asset("textures/white_bricks/base_color.png"),
         color_type: MdrColorType::SRGBA,
         sampler_mode: MdrSamplerMode::Repeat,
       },
@@ -177,7 +177,7 @@ pub fn white_bricks(name: &str, engine: &mut MdrEngine) -> MdrMaterial {
     .manage_resources()
     .load_texture(
       MdrTextureCreateInfo {
-        source: asset("textures/white_bricks/roughness.png").as_str(),
+        source: &asset("textures/white_bricks/roughness.png"),
         color_type: MdrColorType::NonColorData,
         sampler_mode: MdrSamplerMode::Repeat,
       },
@@ -188,7 +188,7 @@ pub fn white_bricks(name: &str, engine: &mut MdrEngine) -> MdrMaterial {
     .manage_resources()
     .load_texture(
       MdrTextureCreateInfo {
-        source: asset("textures/white_bricks/normal.png").as_str(),
+        source: &asset("textures/white_bricks/normal.png"),
         color_type: MdrColorType::NonColorData,
         sampler_mode: MdrSamplerMode::Repeat,
       },

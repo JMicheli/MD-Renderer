@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use tracing::Level;
 
@@ -20,11 +20,6 @@ const ASSET_PREFIX: &str = "assets/";
 
 /// A helper function for linking assets in both debug and release versions
 /// of the example.
-pub fn asset(asset_path: &str) -> String {
-  let asset_path_prefix = Path::new(ASSET_PREFIX);
-  asset_path_prefix
-    .join(Path::new(asset_path))
-    .to_str()
-    .unwrap()
-    .to_string()
+pub fn asset(asset_path: &str) -> PathBuf {
+  Path::new(ASSET_PREFIX).join(Path::new(asset_path))
 }

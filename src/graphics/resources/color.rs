@@ -5,6 +5,16 @@ pub enum MdrColor {
   RGBA(MdrRgba),
 }
 
+impl MdrColor {
+  pub const fn rgb(r: f32, g: f32, b: f32) -> Self {
+    Self::RGB(MdrRgb { r, g, b })
+  }
+
+  pub const fn rgba(r: f32, g: f32, b: f32, a: f32) -> Self {
+    Self::RGBA(MdrRgba { r, g, b, a })
+  }
+}
+
 impl From<[f32; 3]> for MdrColor {
   fn from(rgb: [f32; 3]) -> Self {
     Self::RGB(MdrRgb::from(rgb))

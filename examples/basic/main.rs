@@ -3,10 +3,10 @@ use mdr_engine::{
   scene::{MdrLight, MdrRenderObject, MdrScene},
 };
 
-// Some functions and constants extraneous to the example
+use utils::{DEBUG_ENABLED, LOG_LEVEL, asset};
+
 mod materials;
 mod utils;
-use utils::{DEBUG_ENABLED, LOG_LEVEL, asset};
 
 // Consts for this example
 const LIGHT_MOV_SPEED: f32 = 1.0;
@@ -24,33 +24,33 @@ fn main() {
   tracing::subscriber::set_global_default(subscriber).unwrap();
 
   mdr_engine::run_application(
-    ExampleApp {},
+    BasicExampleApp {},
     MdrRunOptions {
       debug: DEBUG_ENABLED,
     },
   );
 }
 
-struct ExampleApp;
+struct BasicExampleApp;
 
-impl MdrApplication for ExampleApp {
+impl MdrApplication for BasicExampleApp {
   fn initialize(&self, engine: &mut MdrEngine) {
     // Create object meshes
     let monkey_mesh = engine
       .manage_resources()
-      .load_mesh(asset("meshes/suzanne.obj").as_str(), "monkey")
+      .load_mesh(&asset("meshes/suzanne.obj"), "monkey")
       .unwrap();
     let sphere_mesh = engine
       .manage_resources()
-      .load_mesh(asset("meshes/sphere.obj").as_str(), "sphere")
+      .load_mesh(&asset("meshes/sphere.obj"), "sphere")
       .unwrap();
     let cube_mesh = engine
       .manage_resources()
-      .load_mesh(asset("meshes/cube.obj").as_str(), "cube")
+      .load_mesh(&asset("meshes/cube.obj"), "cube")
       .unwrap();
     let plane_mesh = engine
       .manage_resources()
-      .load_mesh(asset("meshes/plane.obj").as_str(), "plane")
+      .load_mesh(&asset("meshes/plane.obj"), "plane")
       .unwrap();
 
     // Create object materials

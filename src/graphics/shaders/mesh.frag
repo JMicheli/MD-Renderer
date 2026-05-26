@@ -98,14 +98,4 @@ void main() {
   
   result = pow(result, vec3(1.0 / GAMMA_FACTOR));
   f_color = vec4(result, 1.0);
-
-  // ///////////////
-  // IGNORE
-  // ///////////////
-  // These are just to keep it from crashing for now
-  uint i = scene_data.point_light_count;
-  float s = material.shininess;
-  vec4 c1 = texture(diffuse_map, v_uv);
-  vec4 c2 = texture(roughness_map, v_uv);
-  vec4 c3 = texture(normal_map, v_uv);
 }

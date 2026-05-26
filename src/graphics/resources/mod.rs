@@ -6,21 +6,21 @@ pub mod vertex;
 
 use image::{DynamicImage, ImageBuffer, ImageReader, Rgb, Rgba};
 use rustc_hash::{FxBuildHasher, FxHashMap};
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, path::Path, sync::Arc};
 use vulkano::{
   buffer::{
-    allocator::{SubbufferAllocator, SubbufferAllocatorCreateInfo},
     Buffer, BufferContents, BufferCreateInfo, BufferUsage, Subbuffer,
+    allocator::{SubbufferAllocator, SubbufferAllocatorCreateInfo},
   },
   command_buffer::{
-    allocator::StandardCommandBufferAllocator, AutoCommandBufferBuilder, CommandBufferUsage,
-    CopyBufferToImageInfo, PrimaryCommandBufferAbstract,
+    AutoCommandBufferBuilder, CommandBufferUsage, CopyBufferToImageInfo,
+    PrimaryCommandBufferAbstract, allocator::StandardCommandBufferAllocator,
   },
   device::{Device, Queue},
   image::{
+    Image, ImageCreateInfo, ImageType, ImageUsage,
     sampler::{Filter, Sampler, SamplerAddressMode, SamplerCreateInfo},
     view::ImageView,
-    Image, ImageCreateInfo, ImageType, ImageUsage,
   },
   memory::allocator::{
     AllocationCreateInfo, FreeListAllocator, GenericMemoryAllocator, MemoryTypeFilter,
@@ -134,7 +134,7 @@ impl MdrResourceManager {
   /// Load a mesh from an .obj file into the mesh library with a given name.
   /// `path` specifies a path to the .obj file.
   /// `name` is the name given to the mesh in the mesh library.
-  pub fn load_mesh_obj(&mut self, path: &str, name: &str) -> Result<MdrMesh, MdrResourceError> {
+  pub fn load_mesh_obj(&mut self, path: &Path, name: &str) -> Result<MdrMesh, MdrResourceError> {
     // Check that the mesh name isn't already in use
     if self.mesh_library.contains_key(name) {
       tracing::error!("Mesh library already contains name: {name}");
@@ -144,7 +144,7 @@ impl MdrResourceManager {
     let Some(mesh_data) = mesh::open_obj(path) else {
       return Err(MdrResourceError::ObjLoadError);
     };
-    tracing::debug!("Loaded obj file: {path}");
+    tracing::debug!("Loaded obj file: {path:?}");
 
     let mesh_handle = self.upload_mesh_to_gpu(&mesh_data);
     self.mesh_library.insert(String::from(name), mesh_handle);
@@ -155,7 +155,7 @@ impl MdrResourceManager {
     })
   }
 
-  pub fn load_mesh(&mut self, path: &str, name: &str) -> Result<MdrMesh, MdrResourceError> {
+  pub fn load_mesh(&mut self, path: &Path, name: &str) -> Result<MdrMesh, MdrResourceError> {
     // open_model_assimp
 
     // Check that the mesh name isn't already in use
@@ -167,7 +167,7 @@ impl MdrResourceManager {
     let Some(mesh_data) = mesh::open_obj(path) else {
       return Err(MdrResourceError::AssimpLoadError);
     };
-    tracing::debug!("Loaded obj file: {path}");
+    tracing::debug!("Loaded obj file: {path:?}");
 
     let mesh_handle = self.upload_mesh_to_gpu(&mesh_data);
     self.mesh_library.insert(String::from(name), mesh_handle);
@@ -275,7 +275,7 @@ impl MdrResourceManager {
     let texture_handle = self.upload_image_to_gpu(
       &image,
       MdrTextureCreateInfo {
-        source: "",
+        source: Path::new(""),
         color_type: MdrColorType::from(color),
         sampler_mode: MdrSamplerMode::ClampToEdge,
       },

@@ -3,30 +3,30 @@ use std::sync::Arc;
 use winit::event_loop::ActiveEventLoop;
 
 use vulkano::{
+  Validated, VulkanError, VulkanLibrary,
   buffer::{Buffer, BufferCreateInfo, BufferUsage, Subbuffer},
   command_buffer::{
-    allocator::{StandardCommandBufferAllocator, StandardCommandBufferAllocatorCreateInfo},
     AutoCommandBufferBuilder, CommandBufferUsage, PrimaryAutoCommandBuffer, RenderPassBeginInfo,
     SubpassBeginInfo, SubpassContents, SubpassEndInfo,
+    allocator::{StandardCommandBufferAllocator, StandardCommandBufferAllocatorCreateInfo},
   },
-  descriptor_set::{allocator::StandardDescriptorSetAllocator, DescriptorSet, WriteDescriptorSet},
+  descriptor_set::{DescriptorSet, WriteDescriptorSet, allocator::StandardDescriptorSetAllocator},
   device::{
-    physical::{PhysicalDevice, PhysicalDeviceType},
     Device, DeviceCreateInfo, DeviceExtensions, Queue, QueueCreateInfo, QueueFlags,
+    physical::{PhysicalDevice, PhysicalDeviceType},
   },
   format::{ClearValue, Format},
-  image::{view::ImageView, Image, ImageCreateInfo, ImageUsage},
+  image::{Image, ImageCreateInfo, ImageUsage, view::ImageView},
   instance::{Instance, InstanceCreateInfo, InstanceExtensions},
   memory::allocator::{
     AllocationCreateInfo, FreeListAllocator, GenericMemoryAllocator, MemoryTypeFilter,
     StandardMemoryAllocator,
   },
   padded::Padded,
-  pipeline::{graphics::viewport::Viewport, Pipeline, PipelineBindPoint},
+  pipeline::{Pipeline, PipelineBindPoint, graphics::viewport::Viewport},
   render_pass::{Framebuffer, FramebufferCreateInfo},
   swapchain::{self, Surface, Swapchain, SwapchainCreateInfo, SwapchainPresentInfo},
   sync::{self, GpuFuture},
-  Validated, VulkanError, VulkanLibrary,
 };
 
 use crate::{

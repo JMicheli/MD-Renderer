@@ -1,6 +1,8 @@
+use std::path::Path;
+
 use vulkano::buffer::Subbuffer;
 
-use super::{vertex::MdrVertex_tan, MdrVertex_norm, MdrVertex_pos, MdrVertex_uv};
+use super::{MdrVertex_norm, MdrVertex_pos, MdrVertex_uv, vertex::MdrVertex_tan};
 
 #[derive(Default)]
 pub struct MdrMeshData {
@@ -28,14 +30,14 @@ pub struct MdrGpuMeshHandle {
   pub(crate) index_count: u32,
 }
 
-pub fn open_obj(path: &str) -> Option<MdrMeshData> {
+pub fn open_obj(path: &Path) -> Option<MdrMeshData> {
   // Load data from disk
   let options = tobj::GPU_LOAD_OPTIONS;
   let load_result = tobj::load_obj(path, &options);
   let (models, _) = match load_result {
     Ok(value) => value,
     Err(e) => {
-      tracing::error!("Failed to load obj file: {path}, reason: {e}");
+      tracing::error!("Failed to load obj file: {path:?}, reason: {e}");
       return None;
     }
   };
@@ -71,9 +73,16 @@ pub fn open_obj(path: &str) -> Option<MdrMeshData> {
         model_normals[index_3d + 2],
       ],
     });
-    mesh_uvs.push(MdrVertex_uv {
-      a_uv: [model_uvs[index_2d], model_uvs[index_2d + 1]],
-    });
+
+    // Handle missing UVs by writting dummy UV values
+    // TODO - Is this the right solution here?
+    if !model_uvs.is_empty() {
+      mesh_uvs.push(MdrVertex_uv {
+        a_uv: [model_uvs[index_2d], model_uvs[index_2d + 1]],
+      });
+    } else {
+      mesh_uvs.push(MdrVertex_uv { a_uv: [0.0, 0.0] })
+    }
   }
 
   let mesh_tangents = calculate_mesh_tangents(&mesh_positions, &mesh_uvs, &model.mesh.indices);
