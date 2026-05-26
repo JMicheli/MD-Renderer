@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use vulkano::{device::Device, shader::ShaderModule, Validated, VulkanError};
+use vulkano::{Validated, VulkanError, device::Device, shader::ShaderModule};
 
 pub mod mesh_vertex_shader {
   vulkano_shaders::shader! {
@@ -39,6 +39,7 @@ pub mod light_fragment_shader {
   }
 }
 
+#[allow(dead_code)]
 pub fn load_light_shaders(logical_device: &Arc<Device>) -> (Arc<ShaderModule>, Arc<ShaderModule>) {
   // Vertex shader
   let vs = validate_load_result(light_vertex_shader::load(logical_device.clone()));

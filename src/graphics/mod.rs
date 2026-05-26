@@ -6,4 +6,5 @@ mod shaders;
 mod window;
 
 pub use context::MdrGraphicsContext;
+#[allow(unused_imports)]
 pub use resources::{MdrResourceError, MdrResourceManager};
