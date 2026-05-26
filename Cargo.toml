@@ -15,3 +15,9 @@ tracing = "0.1.44"
 
 [dev-dependencies]
 tracing-subscriber = "0.3.23"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+strip = true
