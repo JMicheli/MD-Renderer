@@ -44,6 +44,6 @@ cause cargo to download the dependencies and build the project.
 
 `cargo run --example basic`
 
-© Joseph W. Micheli 2022, all rights reserved. See
+© Joseph W. Micheli 2022-2026, all rights reserved. See
 [license.txt](https://github.com/JMicheli/MD-Renderer/blob/main/license.txt) for
 further information.
