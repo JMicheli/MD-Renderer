@@ -5,7 +5,6 @@ mod graphics;
 mod input;
 pub mod scene;
 
-pub mod logger;
 pub use application::{run_application, MdrApplication, MdrRunOptions};
 pub use engine::MdrEngine;
 pub use graphics::resources;

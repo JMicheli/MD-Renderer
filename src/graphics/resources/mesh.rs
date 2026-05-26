@@ -1,4 +1,3 @@
-use log::error;
 use vulkano::buffer::Subbuffer;
 
 use super::{vertex::MdrVertex_tan, MdrVertex_norm, MdrVertex_pos, MdrVertex_uv};
@@ -36,7 +35,7 @@ pub fn open_obj(path: &str) -> Option<MdrMeshData> {
   let (models, _) = match load_result {
     Ok(value) => value,
     Err(e) => {
-      error!("Failed to load obj file: {path}, reason: {e}");
+      tracing::error!("Failed to load obj file: {path}, reason: {e}");
       return None;
     }
   };

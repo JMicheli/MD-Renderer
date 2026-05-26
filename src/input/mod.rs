@@ -1,4 +1,3 @@
-use log::trace;
 use winit::{
   dpi::PhysicalPosition,
   event::{ElementState, KeyEvent, MouseButton},
@@ -80,7 +79,7 @@ impl MdrInputContext {
   }
 
   pub fn mouse_input(&mut self, state: ElementState, button: MouseButton) {
-    trace!("Mouse event");
+    tracing::trace!("Mouse event");
     match (button, state) {
       (MouseButton::Left, ElementState::Pressed) => {
         self.state.mouse_left = true;
@@ -99,7 +98,7 @@ impl MdrInputContext {
   }
 
   pub fn mouse_moved_input(&mut self, position: PhysicalPosition<f64>) {
-    trace!("Mouse moved event");
+    tracing::trace!("Mouse moved event");
     let new_position = [position.x as f32, position.y as f32];
     self.state.mouse_delta = [
       new_position[0] - self.state.mouse_position[0],

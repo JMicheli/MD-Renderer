@@ -1,4 +1,3 @@
-use log::info;
 use winit::{
   application::ApplicationHandler,
   event::WindowEvent,
@@ -77,7 +76,7 @@ impl ApplicationHandler for InternalApplication {
     if let Some(engine) = self.engine.as_mut() {
       self.application.shutdown(engine);
     } else {
-      info!("Exiting without existing engine");
+      tracing::info!("Exiting without existing engine");
     }
   }
 }

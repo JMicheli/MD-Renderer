@@ -1,4 +1,3 @@
-use log::{debug, error, info, trace};
 use nalgebra::Vector3;
 use std::sync::Arc;
 use winit::event_loop::ActiveEventLoop;
@@ -74,13 +73,13 @@ pub struct MdrGraphicsContext {
 impl MdrGraphicsContext {
   /// Create a new MD Renderer Graphics context with optional debug.
   pub fn new(event_loop: &ActiveEventLoop, debug_enabled: bool) -> Self {
-    debug!("Creating graphics context");
+    tracing::debug!("Creating graphics context");
 
     // Get a vulkan library
     let library = VulkanLibrary::new().expect("Failed to acquire vulkan library");
     // Create instance containing Vulkan function pointers
     let instance = Self::create_instance(library, event_loop, debug_enabled);
-    debug!("Created vulkan instance");
+    tracing::debug!("Created vulkan instance");
 
     // Create window
     let window_options = MdrWindowOptions {
@@ -90,7 +89,7 @@ impl MdrGraphicsContext {
       title: "MD Renderer",
     };
     let window = MdrWindow::new(&instance, event_loop, &window_options);
-    debug!("Created window");
+    tracing::debug!("Created window");
 
     // Select physical device and queue
     let (physical_device, queue_family_index) =
@@ -98,7 +97,7 @@ impl MdrGraphicsContext {
 
     let device_name = &physical_device.properties().device_name;
     let device_type = physical_device.properties().device_type;
-    info!("Using device: {device_name} (type: {device_type:?})");
+    tracing::info!("Using device: {device_name} (type: {device_type:?})");
 
     // Create logical device
     let device_extensions = DeviceExtensions {
@@ -110,7 +109,7 @@ impl MdrGraphicsContext {
       device_extensions,
       queue_family_index,
     );
-    debug!("Created logical device");
+    tracing::debug!("Created logical device");
 
     // Create allocators
     let memory_allocator = Arc::new(StandardMemoryAllocator::new_default(logical_device.clone()));
@@ -129,24 +128,24 @@ impl MdrGraphicsContext {
     // Create swapchain
     let (swapchain, swapchain_images) =
       Self::create_swapchain(&window, &logical_device, &physical_device);
-    debug!("Created swapchain");
+    tracing::debug!("Created swapchain");
 
     // Create render pass
     let render_pass = MdrRenderPass::new(&logical_device, swapchain.image_format());
-    debug!("Created render pass");
+    tracing::debug!("Created render pass");
 
     // Create viewport
     let viewport = window.create_viewport();
-    debug!("Created viewport");
+    tracing::debug!("Created viewport");
 
     // Create mesh pipeline
     let pipeline = MdrMeshPipeline::new(&logical_device, &render_pass, &viewport);
-    debug!("Created pipeline");
+    tracing::debug!("Created pipeline");
 
     // Create framebuffers
     let framebuffers =
       Self::create_framebuffers(&memory_allocator, &swapchain_images, &render_pass);
-    debug!("Created framebuffers");
+    tracing::debug!("Created framebuffers");
 
     // Create vector of futures corresponding to each swapchain image
     let frame_futures = Self::set_up_frame_futures(swapchain_images.len());
@@ -186,11 +185,11 @@ impl MdrGraphicsContext {
 
   /// Submits a draw command buffer based on the `MdrScene` referenced.
   pub fn draw(&mut self, scene: &MdrScene) {
-    trace!("Starting draw");
+    tracing::trace!("Starting draw");
 
     // Skip draw for minimized windows
     if self.window.is_minimized() {
-      trace!("Window minimized");
+      tracing::trace!("Window minimized");
       return;
     }
 
@@ -201,7 +200,7 @@ impl MdrGraphicsContext {
       match swapchain::acquire_next_image(self.swapchain.clone(), None) {
         Ok(r) => r,
         Err(Validated::Error(VulkanError::OutOfDate)) => {
-          debug!("Swapchain out of date, flagging for recreation");
+          tracing::debug!("Swapchain out of date, flagging for recreation");
           self.should_recreate_swapchain = true;
           return; // No render this frame
         }
@@ -210,7 +209,7 @@ impl MdrGraphicsContext {
 
     // The swapchain can be suboptimal but not out of date
     if is_suboptimal {
-      trace!("Swapchain suboptimal, flagging for recreation");
+      tracing::trace!("Swapchain suboptimal, flagging for recreation");
       // We'll use it but recreate the swapchain on the next loop
       self.should_recreate_swapchain = true;
     }
@@ -251,7 +250,7 @@ impl MdrGraphicsContext {
         sync::now(self.logical_device.clone()).boxed()
       }
       Err(e) => {
-        error!("Failed to flush future: {e}");
+        tracing::error!("Failed to flush future: {e}");
         sync::now(self.logical_device.clone()).boxed()
       }
     };
@@ -259,7 +258,7 @@ impl MdrGraphicsContext {
     // Store future and index for this frame's completion
     self.frame_futures[image_index as usize] = Some(end_of_frame_future);
     self.previous_frame_index = image_index as usize;
-    trace!("Completed draw");
+    tracing::trace!("Completed draw");
   }
 
   /// Performs updates based on the render surface's size.
@@ -268,7 +267,7 @@ impl MdrGraphicsContext {
       self.should_recreate_swapchain = false;
 
       // Recreate swapchain and framebuffers
-      trace!("Recreating swapchain");
+      tracing::trace!("Recreating swapchain");
       let mut recreate_info = self.swapchain.create_info();
       recreate_info.image_extent = self.window.dimensions().into();
       (self.swapchain, self.swapchain_images) = self.swapchain.recreate(recreate_info).unwrap();
@@ -282,7 +281,7 @@ impl MdrGraphicsContext {
         self.window_was_resized = false;
 
         // Recreate viewport and pipeline
-        trace!("Window resized, recreating pipeline");
+        tracing::trace!("Window resized, recreating pipeline");
         self.viewport.extent = self.window.dimensions().into();
         self.pipeline.recreate(&self.render_pass, &self.viewport);
 
@@ -463,7 +462,7 @@ impl MdrGraphicsContext {
     builder.end_render_pass(SubpassEndInfo::default()).unwrap();
     let command_buffer = builder.build().unwrap();
 
-    trace!("Created command buffer");
+    tracing::trace!("Created command buffer");
     command_buffer
   }
 
@@ -527,7 +526,7 @@ impl MdrGraphicsContext {
 
       // If debugging is enabled, add the debug utility extension
       if debug_enabled {
-        info!("Debug enabled");
+        tracing::info!("Debug enabled");
         let debug_extensions = InstanceExtensions {
           ext_debug_utils: true,
           ..InstanceExtensions::empty()
@@ -545,7 +544,7 @@ impl MdrGraphicsContext {
       // Ignore layers if not in debug mode
       if debug_enabled {
         // Print out available layers
-        debug!("Available debugging layers:");
+        tracing::debug!("Available debugging layers:");
         let available_layers = library.layer_properties().unwrap();
 
         let mut available_layers_str = String::new();
@@ -554,11 +553,11 @@ impl MdrGraphicsContext {
           available_layers_str.push_str(layer_str.as_str());
         }
         available_layers_str.pop();
-        debug!("Available layers: \n{}", available_layers_str.as_str());
+        tracing::debug!("Available layers: \n{}", available_layers_str.as_str());
 
         // Push validation layer
         output_layers.push("VK_LAYER_KHRONOS_validation".to_owned());
-        debug!("Enabled layer: VK_LAYER_KHRONOS_validation");
+        tracing::debug!("Enabled layer: VK_LAYER_KHRONOS_validation");
       }
 
       output_layers
@@ -611,8 +610,8 @@ impl MdrGraphicsContext {
       });
 
     device_creation_results.unwrap_or_else(|| {
-        panic!("Failed to find physical device and queue family.");
-      })
+      panic!("Failed to find physical device and queue family.");
+    })
   }
 
   /// Create a Vulkan logical device and queue.

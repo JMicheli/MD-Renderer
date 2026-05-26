@@ -1,6 +1,5 @@
 use std::time::Instant;
 
-use log::{info, trace};
 use winit::{event::WindowEvent, event_loop::ActiveEventLoop};
 
 use crate::{
@@ -38,16 +37,16 @@ impl MdrEngine {
   pub fn handle_event(&mut self, event_loop: &ActiveEventLoop, event: WindowEvent) {
     match event {
       WindowEvent::Resized(_) => {
-        trace!("Resized");
+        tracing::trace!("Resized");
         self.graphics_context.notify_resized();
       }
       WindowEvent::CloseRequested => {
-        info!("Exiting");
+        tracing::info!("Exiting");
         event_loop.exit();
       }
       WindowEvent::Destroyed => {
         // TODO - Figure out how to use this for shutdown?
-        info!("Window destroyed");
+        tracing::info!("Window destroyed");
       }
       WindowEvent::KeyboardInput { event, .. } => {
         self.input_context.keyboard_input(&event);
@@ -60,7 +59,7 @@ impl MdrEngine {
       }
       WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
         // TODO - I think I may need to use this to fix a crash?
-        info!("Scale factor changed to {scale_factor}");
+        tracing::info!("Scale factor changed to {scale_factor}");
       }
       WindowEvent::RedrawRequested => {
         self

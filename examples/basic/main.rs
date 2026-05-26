@@ -1,14 +1,13 @@
 use std::env;
 
 use mdr_engine::{
-  logger,
   scene::{MdrLight, MdrRenderObject, MdrScene},
   MdrApplication, MdrEngine, MdrInputState, MdrRunOptions,
 };
 
 // Some functions and constants extraneous to the example
 mod utils;
-use utils::{asset, DEBUG_ENABLED, MDR_LOG_LEVEL};
+use utils::{asset, DEBUG_ENABLED, LOG_LEVEL};
 mod materials;
 
 // Consts for this example
@@ -18,8 +17,12 @@ const CAMERA_MOV_SPEED: f32 = 0.5;
 const CAMERA_ROT_SPEED: f32 = 0.01;
 
 fn main() {
-  env::set_var("MDR_LOG_LEVEL", MDR_LOG_LEVEL);
-  logger::init_from_env().expect("Failed to initialize logger");
+  let subscriber = tracing_subscriber::fmt()
+    .with_max_level(LOG_LEVEL)
+    .without_time()
+    .compact()
+    .finish();
+  tracing::subscriber::set_global_default(subscriber).unwrap();
 
   mdr_engine::run_application(
     ExampleApp::new(),

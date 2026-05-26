@@ -4,8 +4,7 @@ pub mod mesh;
 pub mod texture;
 pub mod vertex;
 
-use image::{io::Reader as ImageReader, DynamicImage, ImageBuffer, Rgb, Rgba};
-use log::{debug, error, warn};
+use image::{DynamicImage, ImageBuffer, ImageReader, Rgb, Rgba};
 use rustc_hash::{FxBuildHasher, FxHashMap};
 use std::{collections::HashMap, sync::Arc};
 use vulkano::{
@@ -138,18 +137,18 @@ impl MdrResourceManager {
   pub fn load_mesh_obj(&mut self, path: &str, name: &str) -> Result<MdrMesh, MdrResourceError> {
     // Check that the mesh name isn't already in use
     if self.mesh_library.contains_key(name) {
-      error!("Mesh library already contains name: {name}");
+      tracing::error!("Mesh library already contains name: {name}");
       return Err(MdrResourceError::DuplicateMeshName);
     }
 
     let Some(mesh_data) = mesh::open_obj(path) else {
       return Err(MdrResourceError::ObjLoadError);
     };
-    debug!("Loaded obj file: {path}");
+    tracing::debug!("Loaded obj file: {path}");
 
     let mesh_handle = self.upload_mesh_to_gpu(&mesh_data);
     self.mesh_library.insert(String::from(name), mesh_handle);
-    debug!("Added {name} to mesh library");
+    tracing::debug!("Added {name} to mesh library");
 
     Ok(MdrMesh {
       name: String::from(name),
@@ -161,18 +160,18 @@ impl MdrResourceManager {
 
     // Check that the mesh name isn't already in use
     if self.mesh_library.contains_key(name) {
-      error!("Mesh library already contains name: {name}");
+      tracing::error!("Mesh library already contains name: {name}");
       return Err(MdrResourceError::DuplicateMeshName);
     }
 
     let Some(mesh_data) = mesh::open_obj(path) else {
       return Err(MdrResourceError::AssimpLoadError);
     };
-    debug!("Loaded obj file: {path}");
+    tracing::debug!("Loaded obj file: {path}");
 
     let mesh_handle = self.upload_mesh_to_gpu(&mesh_data);
     self.mesh_library.insert(String::from(name), mesh_handle);
-    debug!("Added {name} to mesh library");
+    tracing::debug!("Added {name} to mesh library");
 
     Ok(MdrMesh {
       name: String::from(name),
@@ -195,7 +194,7 @@ impl MdrResourceManager {
   /// from GPU memory. Doing this will effectively invalidate any existing `MdrMesh` objects.
   pub fn unload_mesh(&mut self, name: &str) {
     if !self.mesh_library.contains_key(name) {
-      warn!("Cannot unload mesh {name} because it is not in the library",);
+      tracing::warn!("Cannot unload mesh {name} because it is not in the library",);
       return;
     }
 
@@ -215,7 +214,7 @@ impl MdrResourceManager {
   ) -> Result<MdrTexture, MdrResourceError> {
     // Check that the texture name isn't already in use
     if self.texture_library.contains_key(name) {
-      error!("Texture library already contains name: {name}");
+      tracing::error!("Texture library already contains name: {name}");
       return Err(MdrResourceError::DuplicateTextureName);
     }
 
@@ -230,7 +229,7 @@ impl MdrResourceManager {
     self
       .texture_library
       .insert(String::from(name), texture_handle);
-    debug!("Added {name} to texture library");
+    tracing::debug!("Added {name} to texture library");
 
     Ok(MdrTexture {
       name: String::from(name),
@@ -246,7 +245,7 @@ impl MdrResourceManager {
   ) -> Result<MdrTexture, MdrResourceError> {
     // Check that the texture name isn't already in use
     if self.texture_library.contains_key(name) {
-      error!("Texture library already contains name: {name}");
+      tracing::error!("Texture library already contains name: {name}");
       return Err(MdrResourceError::DuplicateTextureName);
     }
 
@@ -284,7 +283,7 @@ impl MdrResourceManager {
     self
       .texture_library
       .insert(String::from(name), texture_handle);
-    debug!("Added {name} to texture library");
+    tracing::debug!("Added {name} to texture library");
 
     Ok(MdrTexture {
       name: String::from(name),
@@ -307,7 +306,7 @@ impl MdrResourceManager {
   /// from GPU memory. Doing this will effectively invalidate any existing `MdrTexture` objects.
   pub fn unload_texture(&mut self, name: &str) {
     if !self.texture_library.contains_key(name) {
-      warn!("Cannot unload texture {name} because it is not in the library",);
+      tracing::warn!("Cannot unload texture {name} because it is not in the library",);
       return;
     }
 
@@ -327,7 +326,7 @@ impl MdrResourceManager {
   ) -> Result<MdrMaterial, MdrResourceError> {
     // Check that the mesh name isn't already in use
     if self.material_library.contains_key(name) {
-      error!("Material library already contains name: {name}");
+      tracing::error!("Material library already contains name: {name}");
       return Err(MdrResourceError::DuplicateMaterialName);
     }
 
@@ -366,7 +365,7 @@ impl MdrResourceManager {
     self
       .material_library
       .insert(String::from(name), material_handle);
-    debug!("Added {name} to material library");
+    tracing::debug!("Added {name} to material library");
 
     Ok(MdrMaterial {
       name: String::from(name),
@@ -389,7 +388,7 @@ impl MdrResourceManager {
   /// from GPU memory. Doing this will effectively invalidate any existing `MdrMaterial` objects.
   pub fn unload_material(&mut self, name: &str) {
     if !self.material_library.contains_key(name) {
-      warn!("Cannot unload material {name} because it is not in the library",);
+      tracing::warn!("Cannot unload material {name} because it is not in the library",);
       return;
     }
 

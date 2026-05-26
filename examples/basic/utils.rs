@@ -1,10 +1,13 @@
 use std::path::Path;
 
+#[cfg(debug_assertions)]
+use tracing::Level;
+
 // Build debug configuration
 #[cfg(debug_assertions)]
-pub const MDR_LOG_LEVEL: &str = "debug";
+pub const LOG_LEVEL: Level = Level::DEBUG;
 #[cfg(not(debug_assertions))]
-pub const MDR_LOG_LEVEL: &str = "info";
+pub const MDR_LOG_LEVEL: Level = Level::INFO;
 #[cfg(debug_assertions)]
 pub const DEBUG_ENABLED: bool = true;
 #[cfg(not(debug_assertions))]
