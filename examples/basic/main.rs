@@ -34,7 +34,7 @@ fn main() {
 struct BasicExampleApp;
 
 impl MdrApplication for BasicExampleApp {
-  fn initialize(&self, engine: &mut MdrEngine) {
+  fn initialize(&mut self, engine: &mut MdrEngine) {
     // Create object meshes
     let monkey_mesh = engine
       .manage_resources()
@@ -59,22 +59,22 @@ impl MdrApplication for BasicExampleApp {
     let plane_mat = materials::metal_plates("plane_mat", engine);
     let cube_mat = materials::wood_planks("cube_mat", engine);
 
-    // Add suzanne
+    // Add Suzanne
     let mut monkey = MdrRenderObject::new(monkey_mesh, monkey_mat);
     monkey.transform.translation.set(0.0, 0.0, -2.0);
-    engine.scene.add_object(monkey);
+    engine.scene.add_object("suzanne", monkey);
     // Add sphere
     let mut sphere = MdrRenderObject::new(sphere_mesh, sphere_mat);
     sphere.transform.translation.set(2.0, -2.0, -3.0);
-    engine.scene.add_object(sphere);
+    engine.scene.add_object("sphere", sphere);
     // Add cube
     let mut cube = MdrRenderObject::new(cube_mesh, cube_mat);
     cube.transform.translation.set(-2.0, -2.0, -3.0);
-    engine.scene.add_object(cube);
+    engine.scene.add_object("cube", cube);
     // Add ground plane
     let mut ground_plane = MdrRenderObject::new(plane_mesh, plane_mat);
     ground_plane.transform.translation.set(0.0, 1.0, 0.0);
-    engine.scene.add_object(ground_plane);
+    engine.scene.add_object("ground", ground_plane);
 
     // Add white light
     let mut white_light = MdrLight::white(LIGHT_BRIGHTNESS);
@@ -82,7 +82,7 @@ impl MdrApplication for BasicExampleApp {
     engine.scene.lights.add_light(white_light);
   }
 
-  fn update(&self, scene: &mut MdrScene, input_state: &MdrInputState, dt: f32) {
+  fn update(&mut self, scene: &mut MdrScene, input_state: &MdrInputState, dt: f32) {
     // Camera WASD movement
     if input_state.w {
       let move_magnitude = dt * CAMERA_MOV_SPEED;
@@ -149,5 +149,5 @@ impl MdrApplication for BasicExampleApp {
     }
   }
 
-  fn shutdown(&self, _: &mut MdrEngine) {}
+  fn shutdown(&mut self, _: &mut MdrEngine) {}
 }

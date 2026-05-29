@@ -1,6 +1,8 @@
+use std::fmt::Display;
+
 use nalgebra::{Matrix4, Rotation3, Scale3, Translation3};
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct MdrTransform {
   pub translation: MdrTranslation,
   pub rotation: MdrRotation,
@@ -34,7 +36,7 @@ impl MdrTransform {
 }
 
 /// Represents a translation along the x, y, and z axes.
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct MdrTranslation {
   pub x: f32,
   pub y: f32,
@@ -79,8 +81,14 @@ impl From<MdrTranslation> for [f32; 3] {
   }
 }
 
+impl Display for MdrTranslation {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(f, "({}, {}, {})", self.x, self.y, self.z)
+  }
+}
+
 /// Represents a rotation in **degrees** around the x, y, and z axes.
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 
 pub struct MdrRotation {
   pub x: f32,
@@ -114,8 +122,14 @@ impl MdrRotation {
   }
 }
 
+impl Display for MdrRotation {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(f, "({}, {}, {})", self.x, self.y, self.z)
+  }
+}
+
 /// Represents a scale along the x, y, and z axes.
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 
 pub struct MdrScale {
   pub x: f32,
@@ -147,5 +161,11 @@ impl MdrScale {
       .try_inverse()
       .unwrap()
       .to_homogeneous()
+  }
+}
+
+impl Display for MdrScale {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(f, "({}, {}, {})", self.x, self.y, self.z)
   }
 }

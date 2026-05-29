@@ -8,8 +8,12 @@ use utils::{DEBUG_ENABLED, LOG_LEVEL, asset};
 
 mod utils;
 
-// Consts for this example
+/// How bright the scene's light will be.
 const LIGHT_BRIGHTNESS: f32 = 0.75;
+/// Initial offset of the camera from the origin.
+const CAMERA_DISTANCE: f32 = 0.75;
+/// Speed that the dragon will rotate *in degrees* when input is provided.
+const DRAGON_ROTATION_SPEED: f32 = 7.0;
 
 fn main() {
   // Set up logging
@@ -31,11 +35,11 @@ fn main() {
 struct HighPolyExampleApp;
 
 impl MdrApplication for HighPolyExampleApp {
-  fn initialize(&self, engine: &mut MdrEngine) {
+  fn initialize(&mut self, engine: &mut MdrEngine) {
     // Load dragon mesh
     let dragon_mesh = engine
       .manage_resources()
-      .load_mesh(&asset("dragon.obj"), "dragon")
+      .load_mesh(&asset("dragon.obj"), "dragon_mesh")
       .unwrap();
 
     // Create textures for material
@@ -70,7 +74,7 @@ impl MdrApplication for HighPolyExampleApp {
     // Add dragon
     let mut dragon = MdrRenderObject::new(dragon_mesh, dragon_mat);
     dragon.transform.rotation.set(0.0, 22.0, 30.0);
-    engine.scene.add_object(dragon);
+    engine.scene.add_object("dragon", dragon);
     // Add light
     let mut white_light = MdrLight::white(LIGHT_BRIGHTNESS);
     white_light.translation.set(1.0, 13.0, 3.0);
@@ -81,10 +85,28 @@ impl MdrApplication for HighPolyExampleApp {
       .camera
       .transform
       .translation
-      .translate_by(0.0, 0.0, -0.75);
+      .translate_by(0.0, 0.0, -CAMERA_DISTANCE);
   }
 
-  fn update(&self, _: &mut MdrScene, _: &MdrInputState, _: f32) {}
+  fn update(&mut self, scene: &mut MdrScene, input: &MdrInputState, dt: f32) {
+    let Some(dragon) = scene.find_object("dragon") else {
+      return;
+    };
 
-  fn shutdown(&self, _: &mut MdrEngine) {}
+    // Incorporate wasd/arrow-key rotation
+    if input.a || input.left {
+      dragon.transform.rotation.z -= dt * DRAGON_ROTATION_SPEED;
+    }
+    if input.w || input.up {
+      dragon.transform.rotation.x -= dt * DRAGON_ROTATION_SPEED;
+    }
+    if input.d || input.right {
+      dragon.transform.rotation.z += dt * DRAGON_ROTATION_SPEED;
+    }
+    if input.s || input.down {
+      dragon.transform.rotation.x += dt * DRAGON_ROTATION_SPEED;
+    }
+  }
+
+  fn shutdown(&mut self, _: &mut MdrEngine) {}
 }

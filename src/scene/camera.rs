@@ -1,3 +1,5 @@
+use std::f32::consts::FRAC_PI_2;
+
 use nalgebra::{Matrix4, Perspective3, Vector3, Vector4};
 
 use super::transform::MdrTransform;
@@ -60,7 +62,7 @@ impl Default for MdrCamera {
     Self {
       transform: MdrTransform::identity(),
 
-      field_of_view: std::f32::consts::FRAC_PI_2,
+      field_of_view: FRAC_PI_2,
       near_plane: 0.01,
       aspect_ratio: 1.0,
       far_plane: 1000.0,

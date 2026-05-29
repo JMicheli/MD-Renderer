@@ -373,7 +373,7 @@ impl MdrGraphicsContext {
       .unwrap();
 
     // Render objects
-    for object in &scene.scene_objects {
+    for (_, object) in scene.scene_objects.iter() {
       // Get handle to the mesh buffers from the resource manager
       let mesh_handle = self.resource_manager.get_mesh_handle(&object.mesh);
       // Get handle to the material buffer from the resource manager

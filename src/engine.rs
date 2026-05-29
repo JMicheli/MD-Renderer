@@ -1,6 +1,9 @@
 use std::time::Instant;
 
-use winit::{event::WindowEvent, event_loop::ActiveEventLoop};
+use winit::{
+  application::ApplicationHandler, event::WindowEvent, event_loop::ActiveEventLoop,
+  window::WindowId,
+};
 
 use crate::{
   MdrApplication,
@@ -72,7 +75,7 @@ impl MdrEngine {
     }
   }
 
-  pub fn do_update(&mut self, application: &dyn MdrApplication) {
+  pub fn do_update(&mut self, application: &mut dyn MdrApplication) {
     let current_instant = Instant::now();
     let dt = (current_instant - self.last_update).as_secs_f32();
 
@@ -84,10 +87,51 @@ impl MdrEngine {
   }
 }
 
-// Event::MainEventsCleared => {
-//   self
-//     .update_context
-//     .update_scene(&mut self.scene, &self.input_context.state);
-//   self.input_context.cleanup_after_update();
-//   None
-// }
+/// This structure holds the winit application state and implements [`ApplicationHandler`]. It is
+/// responsible for creating the [`MdrEngine`] and issuing calls to be handled by the provided
+/// [`MdrApplication`]. The only way it should ever be created is by running [`run_application`].
+pub(crate) struct InternalApplication {
+  engine: Option<MdrEngine>,
+  application: Box<dyn MdrApplication>,
+  options: MdrRunOptions,
+}
+
+impl InternalApplication {
+  pub fn new(application: impl MdrApplication + 'static, options: MdrRunOptions) -> Self {
+    Self {
+      engine: None,
+      application: Box::new(application),
+      options,
+    }
+  }
+}
+
+impl ApplicationHandler for InternalApplication {
+  fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+    // Start engine
+    self.engine = Some(MdrEngine::new(event_loop, &self.options));
+
+    // Run initialization
+    let engine = self.engine.as_mut().unwrap();
+    self.application.initialize(engine);
+  }
+
+  fn about_to_wait(&mut self, _: &ActiveEventLoop) {
+    if let Some(engine) = self.engine.as_mut() {
+      engine.do_update(self.application.as_mut());
+    }
+  }
+
+  fn window_event(&mut self, event_loop: &ActiveEventLoop, _: WindowId, event: WindowEvent) {
+    let engine = self.engine.as_mut().unwrap();
+    engine.handle_event(event_loop, event);
+  }
+
+  fn exiting(&mut self, _: &ActiveEventLoop) {
+    if let Some(engine) = self.engine.as_mut() {
+      self.application.shutdown(engine);
+    } else {
+      tracing::info!("Exiting without existing engine");
+    }
+  }
+}
