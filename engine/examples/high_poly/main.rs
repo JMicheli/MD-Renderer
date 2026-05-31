@@ -4,9 +4,7 @@ use mdr_engine::{
   scene::{MdrLight, MdrRenderObject, MdrScene},
 };
 
-use utils::{DEBUG_ENABLED, LOG_LEVEL, asset};
-
-mod utils;
+use mdr_example_utils::{DEBUG_ENABLED, mesh_asset};
 
 /// How bright the scene's light will be.
 const LIGHT_BRIGHTNESS: f32 = 0.75;
@@ -17,12 +15,7 @@ const DRAGON_ROTATION_SPEED: f32 = 7.0;
 
 fn main() {
   // Set up logging
-  let subscriber = tracing_subscriber::fmt()
-    .with_max_level(LOG_LEVEL)
-    .without_time()
-    .compact()
-    .finish();
-  tracing::subscriber::set_global_default(subscriber).unwrap();
+  mdr_example_utils::initialize_logger().unwrap();
 
   mdr_engine::run_application(
     HighPolyExampleApp {},
@@ -39,7 +32,7 @@ impl MdrApplication for HighPolyExampleApp {
     // Load dragon mesh
     let dragon_mesh = engine
       .manage_resources()
-      .load_mesh(&asset("dragon.obj"), "dragon_mesh")
+      .load_mesh(&mesh_asset("dragon.obj"), "dragon_mesh")
       .unwrap();
 
     // Create textures for material

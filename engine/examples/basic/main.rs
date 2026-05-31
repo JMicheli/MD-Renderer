@@ -3,10 +3,9 @@ use mdr_engine::{
   scene::{MdrLight, MdrRenderObject, MdrScene},
 };
 
-use utils::{DEBUG_ENABLED, LOG_LEVEL, asset};
+use mdr_example_utils::{DEBUG_ENABLED, mesh_asset};
 
 mod materials;
-mod utils;
 
 // Consts for this example
 const LIGHT_MOV_SPEED: f32 = 1.0;
@@ -16,12 +15,7 @@ const CAMERA_ROT_SPEED: f32 = 0.01;
 
 fn main() {
   // Set up logging
-  let subscriber = tracing_subscriber::fmt()
-    .with_max_level(LOG_LEVEL)
-    .without_time()
-    .compact()
-    .finish();
-  tracing::subscriber::set_global_default(subscriber).unwrap();
+  mdr_example_utils::initialize_logger().unwrap();
 
   mdr_engine::run_application(
     BasicExampleApp {},
@@ -38,19 +32,19 @@ impl MdrApplication for BasicExampleApp {
     // Create object meshes
     let monkey_mesh = engine
       .manage_resources()
-      .load_mesh(&asset("meshes/suzanne.obj"), "monkey")
+      .load_mesh(&mesh_asset("suzanne.obj"), "monkey")
       .unwrap();
     let sphere_mesh = engine
       .manage_resources()
-      .load_mesh(&asset("meshes/sphere.obj"), "sphere")
+      .load_mesh(&mesh_asset("sphere.obj"), "sphere")
       .unwrap();
     let cube_mesh = engine
       .manage_resources()
-      .load_mesh(&asset("meshes/cube.obj"), "cube")
+      .load_mesh(&mesh_asset("cube.obj"), "cube")
       .unwrap();
     let plane_mesh = engine
       .manage_resources()
-      .load_mesh(&asset("meshes/plane.obj"), "plane")
+      .load_mesh(&mesh_asset("plane.obj"), "plane")
       .unwrap();
 
     // Create object materials

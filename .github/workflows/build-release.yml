@@ -7,6 +7,22 @@ on:
       - 'v[0-9]+.[0-9]+.[0-9]+'
 
 jobs:
+  # Asset artifact preparation
+  prepare-example-assets:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      
+      - name: Upload example assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: example-assets
+          path: engine/examples/assets/
+
   # Linux - Build application and upload artifact
   build-linux:
     runs-on: ubuntu-latest
@@ -17,23 +33,19 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Upload basic example assets
-        uses: actions/upload-artifact@v4
-        with:
-          name: basic-example-assets
-          path: examples/basic/assets/
-
       - name: Install Rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@v1
 
       - name: Build basic example
         run: cargo build --examples --release --target x86_64-unknown-linux-gnu
 
-      - name: Upload basic example artifact
+      - name: Upload example binary artifact
         uses: actions/upload-artifact@v4
         with:
-          name: basic-example-x86_64-unknown-linux-gnu
-          path: target/x86_64-unknown-linux-gnu/release/examples/basic
+          name: example-binaries-x86_64-unknown-linux-gnu
+          path: | 
+            target/x86_64-unknown-linux-gnu/release/examples/basic
+            target/x86_64-unknown-linux-gnu/release/examples/high_poly
 
   # Windows - Build application and upload artifact
   build-windows:
@@ -54,8 +66,10 @@ jobs:
       - name: Upload basic example artifact
         uses: actions/upload-artifact@v4
         with:
-          name: basic-example-x86_64-pc-windows-msvc
-          path: target/x86_64-pc-windows-msvc/release/examples/basic.exe
+          name: example-binaries-x86_64-pc-windows-msvc
+          path: |
+            target/x86_64-pc-windows-msvc/release/examples/basic.exe
+            target/x86_64-pc-windows-msvc/release/examples/high_poly.exe
 
   # Download artifact and create release
   release:
@@ -80,29 +94,29 @@ jobs:
           body_path: CHANGELOG.md
 
       # Linux release assembly
-      - name: Download basic example artifact (Linux)
+      - name: Download examples artifact (Linux)
         uses: actions/download-artifact@v4
         with:
-          name: basic-example-x86_64-unknown-linux-gnu
+          name: example-binaries-x86_64-unknown-linux-gnu
           path: MDR-linux
 
       - name: Download assets artifact (Linux)
         uses: actions/download-artifact@v4
         with:
-          name: basic-example-assets
+          name: example-assets
           path: MDR-linux/assets
       
       # Windows release assembly
-      - name: Download basic example artifact (Windows)
+      - name: Download examples artifact (Windows)
         uses: actions/download-artifact@v4
         with:
-          name: basic-example-x86_64-pc-windows-msvc
+          name: example-binaries-x86_64-pc-windows-msvc
           path: MDR-windows
 
       - name: Download assets artifact (Windows)
         uses: actions/download-artifact@v4
         with:
-          name: basic-example-assets
+          name: example-assets
           path: MDR-windows/assets
 
       # Zip Linux and Windows artifacts
@@ -123,7 +137,7 @@ jobs:
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: linux-build-results.zip 
-          asset_name: MDR-basic-example-x64-Linux.zip
+          asset_name: MDR-examples-x64-Linux.zip
           asset_content_type: application/zip
 
       - name: Upload release artifact (Windows)
@@ -133,5 +147,5 @@ jobs:
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: windows-build-results.zip 
-          asset_name: MDR-basic-example-x64-Windows.zip
+          asset_name: MDR-examples-x64-Windows.zip
           asset_content_type: application/zip

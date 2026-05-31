@@ -1,0 +1,9 @@
+[package]
+name = "mdr_example_utils"
+version = { workspace = true }
+rust-version = { workspace = true }
+edition = { workspace = true }
+
+[dependencies]
+tracing = { workspace = true }
+tracing-subscriber = "0.3.23"

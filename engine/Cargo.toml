@@ -1,0 +1,18 @@
+[package]
+name = "mdr_engine"
+version = { workspace = true }
+rust-version = { workspace = true }
+edition = { workspace = true }
+
+[dependencies]
+tracing = { workspace = true }
+rustc-hash = "2.1.2"
+image = "0.25.10"
+nalgebra = "0.35.0"
+tobj = "4.0.3"
+vulkano = "0.35.2"
+vulkano-shaders = "0.35.0"
+winit = "0.30.13"
+
+[dev-dependencies]
+mdr_example_utils = { path = "../crates/example_utils" }

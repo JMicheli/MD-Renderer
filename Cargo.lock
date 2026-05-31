@@ -1021,14 +1021,22 @@ name = "mdr_engine"
 version = "0.3.0"
 dependencies = [
  "image",
+ "mdr_example_utils",
  "nalgebra",
  "rustc-hash",
  "tobj",
  "tracing",
- "tracing-subscriber",
  "vulkano",
  "vulkano-shaders",
  "winit",
+]
+
+[[package]]
+name = "mdr_example_utils"
+version = "0.3.0"
+dependencies = [
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]

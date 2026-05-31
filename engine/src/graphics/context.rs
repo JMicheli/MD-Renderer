@@ -183,7 +183,7 @@ impl MdrGraphicsContext {
     }
   }
 
-  /// Submits a draw command buffer based on the `MdrScene` referenced.
+  /// Submits a draw command buffer based on the [`MdrScene`] referenced.
   pub fn draw(&mut self, scene: &MdrScene) {
     tracing::trace!("Starting draw");
 
@@ -214,12 +214,12 @@ impl MdrGraphicsContext {
       self.should_recreate_swapchain = true;
     }
 
-    // Get last frame's end-of-command future (or present moment if no frame waiting)
+    // Get last frame's end-of-command-execution future (or present moment if no frame waiting)
     let mut previous_frame_end = match self.frame_futures[self.previous_frame_index].take() {
       Some(future) => future,
       None => sync::now(self.logical_device.clone()).boxed(),
     };
-    // If we're waiting for any resources to load, chain that in
+    // If we're waiting for any resources to load, chain those in
     if let Some(resource_future) = self.resource_manager.take_upload_futures() {
       previous_frame_end = previous_frame_end.join(resource_future).boxed();
     }
@@ -325,15 +325,15 @@ impl MdrGraphicsContext {
     )
     .unwrap();
 
-    // Clear color used when drawing bacground
+    // Clear color used when drawing background
     let clear_color_value = ClearValue::Float([0.1, 0.1, 0.1, 1.0]);
     let clear_depth_value = ClearValue::Depth(1.0);
     let mut begin_render_pass_info = RenderPassBeginInfo::framebuffer(framebuffer.clone());
     begin_render_pass_info.clear_values = vec![Some(clear_color_value), Some(clear_depth_value)];
 
     // Build command buffer
-    // Begin render pass
     builder
+      // Begin render pass
       .begin_render_pass(
         begin_render_pass_info,
         SubpassBeginInfo {
@@ -349,7 +349,7 @@ impl MdrGraphicsContext {
       .unwrap();
 
     // Upload camera transforms
-    let scene_buffer = Self::upload_scene_data(&self.memory_allocator, scene);
+    let scene_buffer = self.upload_scene_data(scene);
     let scene_descriptor_set = DescriptorSet::new(
       self.descriptor_set_allocator.clone(),
       pipeline
@@ -467,10 +467,7 @@ impl MdrGraphicsContext {
   }
 
   /// Uploads data representing a scene's non-object data, i.e., the camera and lights.
-  fn upload_scene_data(
-    memory_allocator: &Arc<StandardMemoryAllocator>,
-    scene: &MdrScene,
-  ) -> Subbuffer<MdrSceneData> {
+  fn upload_scene_data(&self, scene: &MdrScene) -> Subbuffer<MdrSceneData> {
     // Camera data
     let view_matrix = scene.camera.get_view_matrix();
     let projection_matrix = scene.camera.get_projection_matrix();
@@ -496,7 +493,7 @@ impl MdrGraphicsContext {
         brightness: light.brightness,
       });
     Buffer::from_data(
-      memory_allocator.clone(),
+      self.memory_allocator.clone(),
       BufferCreateInfo {
         usage: BufferUsage::STORAGE_BUFFER,
         ..Default::default()

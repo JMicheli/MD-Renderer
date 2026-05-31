@@ -89,7 +89,9 @@ impl MdrEngine {
 
 /// This structure holds the winit application state and implements [`ApplicationHandler`]. It is
 /// responsible for creating the [`MdrEngine`] and issuing calls to be handled by the provided
-/// [`MdrApplication`]. The only way it should ever be created is by running [`run_application`].
+/// [`MdrApplication`].
+///
+/// The only way it should ever be created is by running [`crate::application::run_application`].
 pub(crate) struct InternalApplication {
   engine: Option<MdrEngine>,
   application: Box<dyn MdrApplication>,
@@ -108,10 +110,10 @@ impl InternalApplication {
 
 impl ApplicationHandler for InternalApplication {
   fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-    // Start engine
+    // Create engine
     self.engine = Some(MdrEngine::new(event_loop, &self.options));
 
-    // Run initialization
+    // Run application-provided initialization
     let engine = self.engine.as_mut().unwrap();
     self.application.initialize(engine);
   }

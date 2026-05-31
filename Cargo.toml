@@ -1,23 +1,19 @@
-[package]
-name = "mdr_engine"
-version = "0.3.0"
-edition = "2024"
-
-[dependencies]
-rustc-hash = "2.1.2"
-image = "0.25.10"
-nalgebra = "0.35.0"
-tobj = "4.0.3"
-vulkano = "0.35.2"
-vulkano-shaders = "0.35.0"
-winit = "0.30.13"
-tracing = "0.1.44"
-
-[dev-dependencies]
-tracing-subscriber = "0.3.23"
+[workspace]
+resolver = "2"
+members = [
+  "engine",
+  "crates/*",
+]
+package.version = "0.3.0"
+package.rust-version = "1.96.0"
+package.edition = "2024"
+package.publish = false
 
 [profile.release]
 codegen-units = 1
 lto = true
 opt-level = 3
 strip = true
+
+[workspace.dependencies]
+tracing = "0.1.44"
