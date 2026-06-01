@@ -6,7 +6,7 @@
 #define GAMMA_FACTOR 2.2
 #define AMBIENT_FACTOR 0.05
 
-#define PI 3.14159265359
+#define PI 3.14159
 
 // Inputs/Ouputs
 // /////////////

@@ -1,7 +1,7 @@
 use mdr_engine::{
   MdrEngine,
   resources::{
-    MdrColorType, MdrMaterial, MdrMaterialCreateInfo, MdrRgb,
+    MdrColorType, MdrMaterial, MdrMaterialCreateInfo, MdrRgb, MdrTexture,
     texture::{MdrSamplerMode, MdrTextureCreateInfo},
   },
 };
@@ -9,202 +9,123 @@ use mdr_engine::{
 use mdr_example_utils::texture_asset;
 
 pub fn metal_plates(name: &str, engine: &mut MdrEngine) -> MdrMaterial {
-  // Metal plates
-  let metal_plates_base_color = engine
-    .manage_resources()
-    .load_texture(
-      MdrTextureCreateInfo {
-        source: &texture_asset("metal_plates/base_color.png"),
-        color_type: MdrColorType::SRGBA,
-        sampler_mode: MdrSamplerMode::Repeat,
-      },
-      "metal_plates_base_color",
-    )
-    .unwrap();
-  let metal_plates_roughness = engine
-    .manage_resources()
-    .load_texture(
-      MdrTextureCreateInfo {
-        source: &texture_asset("metal_plates/roughness.png"),
-        color_type: MdrColorType::NonColorData,
-        sampler_mode: MdrSamplerMode::Repeat,
-      },
-      "metal_plates_roughness",
-    )
-    .unwrap();
-  let metal_plates_normal = engine
-    .manage_resources()
-    .load_texture(
-      MdrTextureCreateInfo {
-        source: &texture_asset("metal_plates/normal.png"),
-        color_type: MdrColorType::NonColorData,
-        sampler_mode: MdrSamplerMode::Repeat,
-      },
-      "metal_plates_normal",
-    )
-    .unwrap();
+  let (metal_plates_base_color, metal_plates_roughness, metal_plates_normal) =
+    load_textures(engine, "metal_plates");
 
-  engine
-    .manage_resources()
-    .create_material(
-      &MdrMaterialCreateInfo {
-        diffuse: metal_plates_base_color,
-        roughness: metal_plates_roughness,
-        normal: metal_plates_normal,
-        specular_color: MdrRgb::white(),
-        shininess: 20.0,
-      },
-      name,
-    )
-    .unwrap()
+  make_material(
+    engine,
+    name,
+    metal_plates_base_color,
+    metal_plates_roughness,
+    metal_plates_normal,
+    MdrRgb::white(),
+    20.0,
+  )
 }
 
 pub fn blue_tile(name: &str, engine: &mut MdrEngine) -> MdrMaterial {
-  // Blue tiles
-  let blue_tiles_base_color = engine
-    .manage_resources()
-    .load_texture(
-      MdrTextureCreateInfo {
-        source: &texture_asset("blue_tiles/base_color.png"),
-        color_type: MdrColorType::SRGBA,
-        sampler_mode: MdrSamplerMode::Repeat,
-      },
-      "blue_tiles_base_color",
-    )
-    .unwrap();
-  let blue_tiles_roughness = engine
-    .manage_resources()
-    .load_texture(
-      MdrTextureCreateInfo {
-        source: &texture_asset("blue_tiles/roughness.png"),
-        color_type: MdrColorType::NonColorData,
-        sampler_mode: MdrSamplerMode::Repeat,
-      },
-      "blue_tiles_roughness",
-    )
-    .unwrap();
-  let blue_tiles_normal = engine
-    .manage_resources()
-    .load_texture(
-      MdrTextureCreateInfo {
-        source: &texture_asset("blue_tiles/normal.png"),
-        color_type: MdrColorType::NonColorData,
-        sampler_mode: MdrSamplerMode::Repeat,
-      },
-      "blue_tiles_normal",
-    )
-    .unwrap();
+  let (blue_tiles_base_color, blue_tiles_roughness, blue_tiles_normal) =
+    load_textures(engine, "blue_tiles");
 
-  engine
-    .manage_resources()
-    .create_material(
-      &MdrMaterialCreateInfo {
-        diffuse: blue_tiles_base_color,
-        roughness: blue_tiles_roughness,
-        normal: blue_tiles_normal,
-        specular_color: MdrRgb::white(),
-        shininess: 20.0,
-      },
-      name,
-    )
-    .unwrap()
+  make_material(
+    engine,
+    name,
+    blue_tiles_base_color,
+    blue_tiles_roughness,
+    blue_tiles_normal,
+    MdrRgb::white(),
+    20.0,
+  )
 }
 
 pub fn wood_planks(name: &str, engine: &mut MdrEngine) -> MdrMaterial {
-  // Wood planks
-  let wood_planks_base_color = engine
-    .manage_resources()
-    .load_texture(
-      MdrTextureCreateInfo {
-        source: &texture_asset("wood_planks/base_color.png"),
-        color_type: MdrColorType::SRGBA,
-        sampler_mode: MdrSamplerMode::Repeat,
-      },
-      "wood_planks_base_color",
-    )
-    .unwrap();
-  let wood_planks_roughness = engine
-    .manage_resources()
-    .load_texture(
-      MdrTextureCreateInfo {
-        source: &texture_asset("wood_planks/roughness.png"),
-        color_type: MdrColorType::NonColorData,
-        sampler_mode: MdrSamplerMode::Repeat,
-      },
-      "wood_planks_roughness",
-    )
-    .unwrap();
-  let wood_planks_normal = engine
-    .manage_resources()
-    .load_texture(
-      MdrTextureCreateInfo {
-        source: &texture_asset("wood_planks/normal.png"),
-        color_type: MdrColorType::NonColorData,
-        sampler_mode: MdrSamplerMode::Repeat,
-      },
-      "wood_planks_normal",
-    )
-    .unwrap();
+  let (wood_planks_base_color, wood_planks_roughness, wood_planks_normal) =
+    load_textures(engine, "wood_planks");
 
-  engine
-    .manage_resources()
-    .create_material(
-      &MdrMaterialCreateInfo {
-        diffuse: wood_planks_base_color,
-        roughness: wood_planks_roughness,
-        normal: wood_planks_normal,
-        specular_color: MdrRgb::white(),
-        shininess: 20.0,
-      },
-      name,
-    )
-    .unwrap()
+  make_material(
+    engine,
+    name,
+    wood_planks_base_color,
+    wood_planks_roughness,
+    wood_planks_normal,
+    MdrRgb::white(),
+    10.0,
+  )
 }
 
 pub fn white_bricks(name: &str, engine: &mut MdrEngine) -> MdrMaterial {
-  let white_bricks_base_color = engine
+  let (white_bricks_base_color, white_bricks_roughness, white_bricks_normal) =
+    load_textures(engine, "white_bricks");
+  make_material(
+    engine,
+    name,
+    white_bricks_base_color,
+    white_bricks_roughness,
+    white_bricks_normal,
+    MdrRgb::white(),
+    2.0,
+  )
+}
+
+fn load_textures(
+  engine: &mut MdrEngine,
+  name_preamble: &str,
+) -> (MdrTexture, MdrTexture, MdrTexture) {
+  let base_color = engine
     .manage_resources()
     .load_texture(
       MdrTextureCreateInfo {
-        source: &texture_asset("white_bricks/base_color.png"),
+        source: &texture_asset(&format!("{name_preamble}/base_color.png")),
         color_type: MdrColorType::SRGBA,
         sampler_mode: MdrSamplerMode::Repeat,
       },
-      "white_bricks_base_color",
+      &format!("{name_preamble}_base_color"),
     )
     .unwrap();
-  let white_bricks_roughness = engine
+  let roughness = engine
     .manage_resources()
     .load_texture(
       MdrTextureCreateInfo {
-        source: &texture_asset("white_bricks/roughness.png"),
+        source: &texture_asset(&format!("{name_preamble}/roughness.png")),
         color_type: MdrColorType::NonColorData,
         sampler_mode: MdrSamplerMode::Repeat,
       },
-      "white_bricks_roughness",
+      &format!("{name_preamble}_roughness"),
     )
     .unwrap();
-  let white_bricks_normal = engine
+  let normal = engine
     .manage_resources()
     .load_texture(
       MdrTextureCreateInfo {
-        source: &texture_asset("white_bricks/normal.png"),
+        source: &texture_asset(&format!("{name_preamble}/normal.png")),
         color_type: MdrColorType::NonColorData,
         sampler_mode: MdrSamplerMode::Repeat,
       },
-      "white_bricks_normal",
+      &format!("{name_preamble}_normal"),
     )
     .unwrap();
 
+  (base_color, roughness, normal)
+}
+
+fn make_material(
+  engine: &mut MdrEngine,
+  name: &str,
+  diffuse: MdrTexture,
+  roughness: MdrTexture,
+  normal: MdrTexture,
+  specular_color: MdrRgb,
+  shininess: f32,
+) -> MdrMaterial {
   engine
     .manage_resources()
     .create_material(
       &MdrMaterialCreateInfo {
-        diffuse: white_bricks_base_color,
-        roughness: white_bricks_roughness,
-        normal: white_bricks_normal,
-        specular_color: MdrRgb::white(),
-        shininess: 2.0,
+        diffuse,
+        roughness,
+        normal,
+        specular_color,
+        shininess,
       },
       name,
     )
