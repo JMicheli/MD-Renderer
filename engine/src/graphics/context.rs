@@ -1,5 +1,5 @@
 use nalgebra::Vector3;
-use std::sync::Arc;
+use std::{sync::Arc, time::Instant};
 use winit::event_loop::ActiveEventLoop;
 
 use vulkano::{
@@ -68,6 +68,8 @@ pub struct MdrGraphicsContext {
   updated_aspect_ratio: bool,
   frame_futures: Vec<Option<Box<dyn GpuFuture>>>,
   previous_frame_index: usize,
+
+  last_draw_call: Option<Instant>,
 }
 
 impl MdrGraphicsContext {
@@ -180,6 +182,8 @@ impl MdrGraphicsContext {
       updated_aspect_ratio: true,
       frame_futures,
       previous_frame_index: 0,
+
+      last_draw_call: None,
     }
   }
 
@@ -192,6 +196,9 @@ impl MdrGraphicsContext {
       tracing::trace!("Window minimized");
       return;
     }
+
+    // Update window title to show statistics
+    self.display_engine_statistics();
 
     self.size_dependent_updates();
 
@@ -259,6 +266,19 @@ impl MdrGraphicsContext {
     self.frame_futures[image_index as usize] = Some(end_of_frame_future);
     self.previous_frame_index = image_index as usize;
     tracing::trace!("Completed draw");
+  }
+
+  fn display_engine_statistics(&mut self) {
+    let Some(last_draw_call) = &self.last_draw_call else {
+      self.last_draw_call = Some(Instant::now());
+      return;
+    };
+
+    let delta_t = (Instant::now() - *last_draw_call).as_millis();
+    let fps = 1000 / delta_t;
+    let title_text = format!("draw time {delta_t} ms | {fps} fps");
+    self.window.decorate_title(&title_text);
+    self.last_draw_call = Some(Instant::now());
   }
 
   /// Performs updates based on the render surface's size.

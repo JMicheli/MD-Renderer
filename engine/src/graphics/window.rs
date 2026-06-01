@@ -17,6 +17,7 @@ pub struct MdrWindowOptions<'a> {
 
 pub struct MdrWindow {
   pub(crate) surface: Arc<Surface>,
+  title: String,
 }
 
 impl MdrWindow {
@@ -36,7 +37,10 @@ impl MdrWindow {
     let window = event_loop.create_window(window_attributes).unwrap();
 
     let surface = Surface::from_window(instance.clone(), Arc::new(window)).unwrap();
-    Arc::new(Self { surface })
+    Arc::new(Self {
+      surface,
+      title: options.title.to_string(),
+    })
   }
 
   pub fn create_viewport(&self) -> Viewport {
@@ -68,5 +72,10 @@ impl MdrWindow {
       .unwrap()
       .downcast_ref::<Window>()
       .unwrap()
+  }
+
+  pub fn decorate_title(&self, title_text: &str) {
+    let title = self.title.clone() + title_text;
+    self.get_window().set_title(&title);
   }
 }
