@@ -7,9 +7,9 @@ use mdr_engine::{
 use mdr_example_utils::{DEBUG_ENABLED, mesh_asset};
 
 /// How bright the scene's light will be.
-const LIGHT_BRIGHTNESS: f32 = 0.75;
+const LIGHT_BRIGHTNESS: f32 = 10.0;
 /// Initial offset of the camera from the origin.
-const CAMERA_DISTANCE: f32 = 0.75;
+const CAMERA_DISTANCE: f32 = 7.75;
 /// Speed that the dragon will rotate *in degrees* when input is provided.
 const DRAGON_ROTATION_SPEED: f32 = 7.0;
 
@@ -46,7 +46,7 @@ impl MdrApplication for HighPolyExampleApp {
       .unwrap();
     let normal = engine
       .manage_resources()
-      .create_solid_texture(MdrColor::rgba(0.0, 0.0, 0.0, 1.0), "normal_tex")
+      .create_solid_texture(MdrColor::rgba(0.5, 0.5, 0.5, 1.0), "normal_tex")
       .unwrap();
 
     // Create dragon material
@@ -67,6 +67,7 @@ impl MdrApplication for HighPolyExampleApp {
     // Add dragon
     let mut dragon = MdrRenderObject::new(dragon_mesh, dragon_mat);
     dragon.transform.rotation.set(0.0, 22.0, 30.0);
+    dragon.transform.scale.set(12.0, 12.0, 12.0);
     engine.scene.add_object("dragon", dragon);
     // Add light
     let mut white_light = MdrLight::white(LIGHT_BRIGHTNESS);

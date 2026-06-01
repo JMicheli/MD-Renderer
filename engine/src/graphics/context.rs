@@ -195,7 +195,7 @@ impl MdrGraphicsContext {
 
     self.size_dependent_updates();
 
-    // First, we acquire the index of the image to draw to
+    // First, we acquire the index of the swapchain image to draw to
     let (image_index, is_suboptimal, acquire_future) =
       match swapchain::acquire_next_image(self.swapchain.clone(), None) {
         Ok(r) => r,
@@ -207,7 +207,7 @@ impl MdrGraphicsContext {
         Err(e) => panic!("Failed to acquire next swapchain image: {e}"),
       };
 
-    // The swapchain can be suboptimal but not out of date
+    // The swapchain can sometimes be suboptimal but not out of date
     if is_suboptimal {
       tracing::trace!("Swapchain suboptimal, flagging for recreation");
       // We'll use it but recreate the swapchain on the next loop

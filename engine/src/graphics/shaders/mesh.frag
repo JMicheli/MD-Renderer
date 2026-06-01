@@ -4,6 +4,9 @@
 // /////////////
 #define MAX_POINT_LIGHTS 10
 #define GAMMA_FACTOR 2.2
+#define AMBIENT_FACTOR 0.05
+
+#define PI 3.14159265359
 
 // Inputs/Ouputs
 // /////////////
@@ -66,35 +69,43 @@ layout(set = 1, binding = 3) uniform sampler2D normal_map;
 // //////////////////
 void main() {
   vec3 diffuse_color = texture(diffuse_map, v_uv).xyz;
-  float specular_strength = material.shininess * texture(roughness_map, v_uv).x;
+  float roughness = texture(roughness_map, v_uv).x;
+  float specular_strength = max(material.shininess * (1.0 - roughness), 0.0001);
+
+  // Surface normal from normal map and TBN
+  vec3 N = texture(normal_map, v_uv).xyz;
+  N = N * 2.0 - 1.0;
+  N = normalize(v_TBN * N);
+  // View to fragment location
+  vec3 V = normalize(scene_data.camera.position - v_position);
+
+  // Ambient lighting
+  vec3 ambient = diffuse_color * AMBIENT_FACTOR; 
 
   // Loop over all the scene lights, accumulating the result
-  vec3 result = vec3(0.0);
-  for (int i = 0; i < scene_data.point_light_count; i++) {
+  vec3 result = ambient;
+  for (uint i = 0; i < scene_data.point_light_count; i++) {
+    // Calculate per-light variables
     vec3 light_position = scene_data.point_lights[i].position;
-    vec3 light_color = scene_data.point_lights[i].color * scene_data.point_lights[i].brightness;
-
-    // ambient
-    vec3 ambient = light_color * diffuse_color;
-    
-    // diffuse 
-    // Surface normal from normal map and TBN
-    vec3 N = texture(normal_map, v_uv).xyz;
-    N = N * 2.0 - 1.0;
-    N = normalize(v_TBN * N);
+    // Use distance from light to calculate light_color with fall-off
+    float light_dist = length(light_position - v_position);
+    float attenuation = 1.0 / max(light_dist * light_dist, 0.001);
+    vec3 light_color = scene_data.point_lights[i].color * scene_data.point_lights[i].brightness * attenuation;
+    // Light to fragment location
     vec3 L = normalize(light_position - v_position);
-    float diff = max(dot(N, L), 0.0);
-    vec3 diffuse = light_color * diff * diffuse_color;
+
+    // Diffuse
+    float diffuse_intensity = max(dot(N, L), 0.0);
+    vec3 diffuse = light_color * diffuse_intensity * diffuse_color;
     
-    // specular
-    vec3 V = normalize(scene_data.camera.position - v_position);
+    // Specular
     vec3 H = normalize(L + V); 
     float spec = pow(max(dot(N, H), 0.0), specular_strength);
-    vec3 specular = light_color * spec * material.specular_color;  
-        
-    result += ambient + diffuse + specular;
+    float energy_conservation = (specular_strength + 8.0) / (8.0 * PI);
+    vec3 specular = light_color * spec * material.specular_color * energy_conservation;
+    
+    result += diffuse + specular;
   } 
-
   
   result = pow(result, vec3(1.0 / GAMMA_FACTOR));
   f_color = vec4(result, 1.0);
