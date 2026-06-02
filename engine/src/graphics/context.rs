@@ -1,5 +1,5 @@
 use nalgebra::Vector3;
-use std::{sync::Arc, time::Instant};
+use std::{fmt::Write, sync::Arc, time::Instant};
 use winit::event_loop::ActiveEventLoop;
 
 use vulkano::{
@@ -70,6 +70,7 @@ pub struct MdrGraphicsContext {
   previous_frame_index: usize,
 
   last_draw_call: Option<Instant>,
+  title_decorator: String,
 }
 
 impl MdrGraphicsContext {
@@ -184,6 +185,7 @@ impl MdrGraphicsContext {
       previous_frame_index: 0,
 
       last_draw_call: None,
+      title_decorator: String::with_capacity(64),
     }
   }
 
@@ -276,8 +278,15 @@ impl MdrGraphicsContext {
 
     let delta_t = (Instant::now() - *last_draw_call).as_millis();
     let fps = 1000 / delta_t;
-    let title_text = format!("draw time {delta_t} ms | {fps} fps");
-    self.window.decorate_title(&title_text);
+
+    self.title_decorator.clear();
+    write!(
+      &mut self.title_decorator,
+      "draw time {delta_t} ms | {fps} fps"
+    )
+    .unwrap();
+
+    self.window.decorate_title(&self.title_decorator);
     self.last_draw_call = Some(Instant::now());
   }
 
