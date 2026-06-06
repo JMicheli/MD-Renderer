@@ -8,7 +8,6 @@ use mdr_example_utils::{DEBUG_ENABLED, mesh_asset};
 mod materials;
 
 // Consts for this example
-const LIGHT_MOV_SPEED: f32 = 1.0;
 const LIGHT_BRIGHTNESS: f32 = 10.0;
 const CAMERA_MOV_SPEED: f32 = 0.5;
 const CAMERA_ROT_SPEED: f32 = 0.01;
@@ -84,7 +83,6 @@ impl MdrApplication for BasicExampleApp {
       scene
         .camera
         .transform
-        .translation
         .translate_by(move_vector.x, 0.0, move_vector.z);
     }
     if input_state.d {
@@ -93,7 +91,6 @@ impl MdrApplication for BasicExampleApp {
       scene
         .camera
         .transform
-        .translation
         .translate_by(move_vector.x, 0.0, move_vector.z);
     }
     if input_state.a {
@@ -102,7 +99,6 @@ impl MdrApplication for BasicExampleApp {
       scene
         .camera
         .transform
-        .translation
         .translate_by(move_vector.x, 0.0, move_vector.z);
     }
     if input_state.s {
@@ -111,35 +107,16 @@ impl MdrApplication for BasicExampleApp {
       scene
         .camera
         .transform
-        .translation
         .translate_by(move_vector.x, 0.0, move_vector.z);
-    }
-
-    // Light movement with arrow keys
-    if scene.lights.get_count() > 0 {
-      let light = scene.lights.get_light_mut(0).unwrap();
-
-      if input_state.up {
-        light.translation.z += dt * LIGHT_MOV_SPEED;
-      }
-      if input_state.down {
-        light.translation.z += dt * -LIGHT_MOV_SPEED;
-      }
-      if input_state.right {
-        light.translation.x += dt * LIGHT_MOV_SPEED;
-      }
-      if input_state.left {
-        light.translation.x += dt * -LIGHT_MOV_SPEED;
-      }
     }
 
     // Camera rotation with mouse when right-button pressed
     if input_state.mouse_right {
-      let delta_x = input_state.mouse_delta[0];
-      let delta_y = input_state.mouse_delta[1];
+      let z_angle = input_state.mouse_delta[0] * CAMERA_ROT_SPEED;
+      let x_angle = input_state.mouse_delta[1] * -CAMERA_ROT_SPEED;
 
-      scene.camera.transform.rotation.z += delta_x * CAMERA_ROT_SPEED;
-      scene.camera.transform.rotation.x += delta_y * -CAMERA_ROT_SPEED;
+      scene.camera.transform.rotation.rotate_x(x_angle);
+      scene.camera.transform.rotation.rotate_y(z_angle);
     }
   }
 

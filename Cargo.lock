@@ -1035,6 +1035,7 @@ dependencies = [
 name = "mdr_example_utils"
 version = "0.3.0"
 dependencies = [
+ "mdr_engine",
  "tracing",
  "tracing-subscriber",
 ]

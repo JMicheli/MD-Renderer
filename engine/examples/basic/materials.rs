@@ -1,12 +1,12 @@
 use mdr_engine::{
   MdrEngine,
   resources::{
-    MdrColorType, MdrMaterial, MdrMaterialCreateInfo, MdrRgb, MdrTexture,
+    MdrColorType, MdrMaterial, MdrRgb, MdrTexture,
     texture::{MdrSamplerMode, MdrTextureCreateInfo},
   },
 };
 
-use mdr_example_utils::texture_asset;
+use mdr_example_utils::{make_material, texture_asset};
 
 pub fn metal_plates(name: &str, engine: &mut MdrEngine) -> MdrMaterial {
   let (metal_plates_base_color, metal_plates_roughness, metal_plates_normal) =
@@ -106,28 +106,4 @@ fn load_textures(
     .unwrap();
 
   (base_color, roughness, normal)
-}
-
-fn make_material(
-  engine: &mut MdrEngine,
-  name: &str,
-  diffuse: MdrTexture,
-  roughness: MdrTexture,
-  normal: MdrTexture,
-  specular_color: MdrRgb,
-  shininess: f32,
-) -> MdrMaterial {
-  engine
-    .manage_resources()
-    .create_material(
-      &MdrMaterialCreateInfo {
-        diffuse,
-        roughness,
-        normal,
-        specular_color,
-        shininess,
-      },
-      name,
-    )
-    .unwrap()
 }

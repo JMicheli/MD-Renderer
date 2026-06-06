@@ -4,7 +4,7 @@ use super::{MdrGpuTextureHandle, MdrTexture, color::MdrRgb};
 
 pub use crate::graphics::shaders::mesh_fragment_shader::MdrMaterialUniformData;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MdrMaterial {
   pub name: String,
 }

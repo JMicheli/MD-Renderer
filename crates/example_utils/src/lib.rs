@@ -1,6 +1,9 @@
 use std::path::{Path, PathBuf};
 
-use tracing::{subscriber::SetGlobalDefaultError, Level};
+use tracing::{Level, subscriber::SetGlobalDefaultError};
+
+mod materials;
+pub use materials::make_material;
 
 // Build debug configuration
 #[cfg(debug_assertions)]

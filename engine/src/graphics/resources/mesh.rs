@@ -15,7 +15,7 @@ pub struct MdrMeshData {
   pub index_count: u32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MdrMesh {
   pub name: String,
 }

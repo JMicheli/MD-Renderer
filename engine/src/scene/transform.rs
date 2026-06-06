@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use nalgebra::{Matrix4, Rotation3, Scale3, Translation3};
+use nalgebra::{Matrix4, Translation3, UnitQuaternion, Vector3};
 
 #[derive(Debug, Clone, Copy)]
 pub struct MdrTransform {
@@ -10,6 +10,14 @@ pub struct MdrTransform {
 }
 
 impl MdrTransform {
+  pub fn identity() -> Self {
+    Self {
+      translation: MdrTranslation::identity(),
+      rotation: MdrRotation::identity(),
+      scale: MdrScale::identity(),
+    }
+  }
+
   pub fn matrix(&self) -> Matrix4<f32> {
     let translation = self.translation.matrix();
     let rotation = self.rotation.matrix();
@@ -19,153 +27,153 @@ impl MdrTransform {
   }
 
   pub fn inverse_matrix(&self) -> Matrix4<f32> {
-    let translation_inv = self.translation.inverse_matrix();
-    let rotation_inv = self.rotation.inverse_matrix();
-    let scale_inv = self.scale.inverse_matrix();
+    let inverse_scale = self.scale.inverse_matrix();
+    let inverse_rotation = self.rotation.inverse_matrix();
+    let inverse_translation = self.translation.inverse_matrix();
 
-    scale_inv * rotation_inv * translation_inv
+    inverse_scale * inverse_rotation * inverse_translation
   }
 
-  pub const fn identity() -> Self {
-    Self {
-      translation: MdrTranslation::identity(),
-      rotation: MdrRotation::identity(),
-      scale: MdrScale::identity(),
-    }
+  pub fn translate_by(&mut self, x: f32, y: f32, z: f32) {
+    self.translation += MdrTranslation::new(x, y, z);
   }
 }
 
 /// Represents a translation along the x, y, and z axes.
 #[derive(Debug, Clone, Copy)]
-pub struct MdrTranslation {
-  pub x: f32,
-  pub y: f32,
-  pub z: f32,
-}
+pub struct MdrTranslation(Translation3<f32>);
 
 impl MdrTranslation {
-  pub const fn set(&mut self, x: f32, y: f32, z: f32) {
-    self.x = x;
-    self.y = y;
-    self.z = z;
+  pub fn identity() -> Self {
+    Self(Translation3::identity())
   }
 
-  pub fn translate_by(&mut self, x: f32, y: f32, z: f32) {
-    self.x += x;
-    self.y += y;
-    self.z += z;
+  pub const fn new(x: f32, y: f32, z: f32) -> Self {
+    Self(Translation3::new(x, y, z))
   }
 
-  pub const fn identity() -> Self {
-    Self {
-      x: 0.0,
-      y: 0.0,
-      z: 0.0,
-    }
+  pub fn set(&mut self, x: f32, y: f32, z: f32) {
+    self.0.x = x;
+    self.0.y = y;
+    self.0.z = z;
   }
 
   pub(crate) fn matrix(&self) -> Matrix4<f32> {
-    Translation3::new(self.x, self.y, self.z).to_homogeneous()
+    self.0.to_homogeneous()
   }
 
   pub(crate) fn inverse_matrix(&self) -> Matrix4<f32> {
-    Translation3::new(self.x, self.y, self.z)
-      .inverse()
-      .to_homogeneous()
+    self.0.inverse().to_homogeneous()
   }
 }
 
+// TODO - Consider removing
 impl From<MdrTranslation> for [f32; 3] {
   fn from(translation: MdrTranslation) -> Self {
-    [translation.x, translation.y, translation.z]
+    [translation.0.x, translation.0.y, translation.0.z]
   }
 }
 
 impl Display for MdrTranslation {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "({}, {}, {})", self.x, self.y, self.z)
+    write!(f, "{}", self.0)
+  }
+}
+
+impl std::ops::Add for MdrTranslation {
+  type Output = Self;
+
+  fn add(self, rhs: Self) -> Self::Output {
+    Self(Translation3::new(
+      self.0.x + rhs.0.x,
+      self.0.y + rhs.0.y,
+      self.0.z + rhs.0.z,
+    ))
+  }
+}
+
+impl std::ops::AddAssign for MdrTranslation {
+  fn add_assign(&mut self, rhs: Self) {
+    *self = *self + rhs
   }
 }
 
 /// Represents a rotation in **degrees** around the x, y, and z axes.
 #[derive(Debug, Clone, Copy)]
 
-pub struct MdrRotation {
-  pub x: f32,
-  pub y: f32,
-  pub z: f32,
-}
+pub struct MdrRotation(UnitQuaternion<f32>);
 
 impl MdrRotation {
-  pub const fn set(&mut self, x: f32, y: f32, z: f32) {
-    self.x = x;
-    self.y = y;
-    self.z = z;
+  pub fn set(&mut self, x: f32, y: f32, z: f32) {
+    let x_rot = UnitQuaternion::from_axis_angle(&Vector3::x_axis(), x);
+    let y_rot = UnitQuaternion::from_axis_angle(&Vector3::y_axis(), y);
+    let z_rot = UnitQuaternion::from_axis_angle(&Vector3::z_axis(), z);
+
+    *self = Self(UnitQuaternion::identity() * x_rot * y_rot * z_rot);
   }
 
-  pub const fn identity() -> Self {
-    Self {
-      x: 0.0,
-      y: 0.0,
-      z: 0.0,
-    }
+  pub fn identity() -> Self {
+    Self(UnitQuaternion::identity())
   }
 
   pub(crate) fn matrix(&self) -> Matrix4<f32> {
-    Rotation3::from_euler_angles(self.x, self.z, self.y).to_homogeneous()
+    self.0.to_homogeneous()
   }
 
   pub(crate) fn inverse_matrix(&self) -> Matrix4<f32> {
-    Rotation3::from_euler_angles(self.x, self.z, self.y)
-      .inverse()
-      .to_homogeneous()
+    self.0.inverse().to_homogeneous()
+  }
+
+  pub fn rotate_x(&mut self, angle: f32) {
+    self.0 *= UnitQuaternion::from_axis_angle(&Vector3::x_axis(), angle)
+  }
+
+  pub fn rotate_y(&mut self, angle: f32) {
+    self.0 *= UnitQuaternion::from_axis_angle(&Vector3::y_axis(), angle)
+  }
+
+  pub fn rotate_z(&mut self, angle: f32) {
+    self.0 *= UnitQuaternion::from_axis_angle(&Vector3::z_axis(), angle)
   }
 }
 
 impl Display for MdrRotation {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "({}, {}, {})", self.x, self.y, self.z)
+    write!(f, "{}", self.0)
   }
 }
 
 /// Represents a scale along the x, y, and z axes.
 #[derive(Debug, Clone, Copy)]
 
-pub struct MdrScale {
-  pub x: f32,
-  pub y: f32,
-  pub z: f32,
-}
+pub struct MdrScale(Vector3<f32>);
 
 impl MdrScale {
-  pub const fn set(&mut self, x: f32, y: f32, z: f32) {
-    self.x = x;
-    self.y = y;
-    self.z = z;
+  pub fn set(&mut self, x: f32, y: f32, z: f32) {
+    self.0.x = x;
+    self.0.y = y;
+    self.0.z = z;
   }
 
-  pub const fn identity() -> Self {
-    Self {
-      x: 1.0,
-      y: 1.0,
-      z: 1.0,
-    }
+  pub fn identity() -> Self {
+    Self(Vector3::new(1.0, 1.0, 1.0))
   }
 
   pub(crate) fn matrix(&self) -> Matrix4<f32> {
-    Scale3::new(self.x, self.y, self.z).to_homogeneous()
+    Matrix4::new_nonuniform_scaling(&self.0)
   }
 
   pub(crate) fn inverse_matrix(&self) -> Matrix4<f32> {
-    Scale3::new(self.x, self.y, self.z)
-      .try_inverse()
-      .unwrap()
-      .to_homogeneous()
+    Matrix4::new_nonuniform_scaling(&Vector3::new(
+      1.0 / self.0.x,
+      1.0 / self.0.y,
+      1.0 / self.0.z,
+    ))
   }
 }
 
 impl Display for MdrScale {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "({}, {}, {})", self.x, self.y, self.z)
+    write!(f, "{}", self.0)
   }
 }

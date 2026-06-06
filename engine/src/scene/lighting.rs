@@ -9,7 +9,7 @@ pub struct MdrLight {
 }
 
 impl MdrLight {
-  pub const fn new(r: f32, g: f32, b: f32, brightness: f32) -> Self {
+  pub fn new(r: f32, g: f32, b: f32, brightness: f32) -> Self {
     Self {
       color: MdrRgb { r, g, b },
       brightness,
@@ -18,11 +18,11 @@ impl MdrLight {
     }
   }
 
-  pub const fn white(brightness: f32) -> Self {
+  pub fn white(brightness: f32) -> Self {
     Self::new(1.0, 1.0, 1.0, brightness)
   }
 
-  pub const fn unused() -> Self {
+  pub fn unused() -> Self {
     Self {
       color: MdrRgb {
         r: 0.0,

@@ -66,7 +66,6 @@ impl MdrApplication for HighPolyExampleApp {
 
     // Add dragon
     let mut dragon = MdrRenderObject::new(dragon_mesh, dragon_mat);
-    dragon.transform.rotation.set(0.0, 22.0, 30.0);
     dragon.transform.scale.set(12.0, 12.0, 12.0);
     engine.scene.add_object("dragon", dragon);
     // Add light
@@ -78,7 +77,6 @@ impl MdrApplication for HighPolyExampleApp {
       .scene
       .camera
       .transform
-      .translation
       .translate_by(0.0, 0.0, -CAMERA_DISTANCE);
   }
 
@@ -88,17 +86,18 @@ impl MdrApplication for HighPolyExampleApp {
     };
 
     // Incorporate wasd/arrow-key rotation
+    let rot_amount = dt * DRAGON_ROTATION_SPEED;
     if input.a || input.left {
-      dragon.transform.rotation.z -= dt * DRAGON_ROTATION_SPEED;
+      dragon.transform.rotation.rotate_z(-rot_amount);
     }
     if input.w || input.up {
-      dragon.transform.rotation.x -= dt * DRAGON_ROTATION_SPEED;
+      dragon.transform.rotation.rotate_x(-rot_amount);
     }
     if input.d || input.right {
-      dragon.transform.rotation.z += dt * DRAGON_ROTATION_SPEED;
+      dragon.transform.rotation.rotate_z(rot_amount);
     }
     if input.s || input.down {
-      dragon.transform.rotation.x += dt * DRAGON_ROTATION_SPEED;
+      dragon.transform.rotation.rotate_x(rot_amount);
     }
   }
 

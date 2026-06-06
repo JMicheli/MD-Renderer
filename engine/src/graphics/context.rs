@@ -1,5 +1,5 @@
-use nalgebra::Vector3;
-use std::{fmt::Write, sync::Arc, time::Instant};
+use nalgebra::{Matrix4, Vector3};
+use std::{collections::VecDeque, fmt::Write, sync::Arc, time::Instant};
 use winit::event_loop::ActiveEventLoop;
 
 use vulkano::{
@@ -37,7 +37,7 @@ use crate::{
     shaders::mesh_vertex_shader::{MdrPushConstants, MdrSceneData},
     window::{MdrWindow, MdrWindowOptions},
   },
-  scene::MdrScene,
+  scene::{MdrRenderObject, MdrScene},
 };
 
 use super::{
@@ -400,7 +400,26 @@ impl MdrGraphicsContext {
       .unwrap();
 
     // Render objects
-    for (_, object) in scene.scene_objects.iter() {
+    // TODO - Document more robustly (esp. collection and transform handling)
+    let mut render_list: VecDeque<(&MdrRenderObject, Option<Matrix4<f32>>)> = scene
+      .scene_objects
+      .iter()
+      .map(|item| (item.1, None))
+      .collect();
+
+    while let Some((object, parent_transform)) = render_list.pop_front() {
+      let object_transform = if let Some(pt) = parent_transform {
+        object.transform.matrix() * pt
+      } else {
+        object.transform.matrix()
+      };
+
+      render_list.extend(
+        object
+          .children()
+          .map(|child| (child, Some(object_transform))),
+      );
+
       // Get handle to the mesh buffers from the resource manager
       let mesh_handle = self.resource_manager.get_mesh_handle(&object.mesh);
       // Get handle to the material buffer from the resource manager
@@ -408,7 +427,7 @@ impl MdrGraphicsContext {
 
       // Upload object's world transform as a push constant
       let push_constants = MdrPushConstants {
-        transformation_matrix: object.transform.matrix().into(),
+        transformation_matrix: object_transform.into(),
       };
 
       // Bind vertex data
