@@ -1,3 +1,15 @@
+#![warn(clippy::pedantic, clippy::nursery)]
+#![allow(
+  clippy::missing_panics_doc,
+  clippy::missing_errors_doc,
+  clippy::cast_precision_loss,
+  clippy::cast_possible_truncation,
+  clippy::default_trait_access,
+  clippy::cast_sign_loss,
+  clippy::must_use_candidate,
+  clippy::struct_excessive_bools
+)]
+
 mod application;
 mod config;
 mod engine;

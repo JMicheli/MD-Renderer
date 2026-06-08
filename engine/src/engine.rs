@@ -92,7 +92,7 @@ impl MdrEngine {
 /// [`MdrApplication`].
 ///
 /// The only way it should ever be created is by running [`crate::application::run_application`].
-pub(crate) struct InternalApplication {
+pub struct InternalApplication {
   engine: Option<MdrEngine>,
   application: Box<dyn MdrApplication>,
   options: MdrRunOptions,

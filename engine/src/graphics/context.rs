@@ -32,7 +32,7 @@ use vulkano::{
 use crate::{
   config::MAX_POINT_LIGHTS,
   graphics::{
-    pipeline::MdrMeshPipeline,
+    pipeline::{MdrEnginePipelines, MdrMeshPipeline},
     render_pass::MdrRenderPass,
     shaders::mesh_vertex_shader::{MdrPushConstants, MdrSceneData},
     window::{MdrWindow, MdrWindowOptions},
@@ -47,22 +47,43 @@ use super::{
 
 /// A Vulkan graphics context, contains Vulkano members.
 pub struct MdrGraphicsContext {
+  /// The window that allows a user to interact with the application and provides a surface
+  /// for displaying render outputs.
   pub(crate) window: Arc<MdrWindow>,
 
+  /// The Vulkan device responsible for rendering operations.
   logical_device: Arc<Device>,
+  /// A command queue in the `logical_device` that executes incoming rendering commands.
   queue: Arc<Queue>,
+  /// A structure that contains buffer images used as render targets for rendering and
+  /// presentation on the display.
   swapchain: Arc<Swapchain>,
+  /// The image buffers in the `swapchain`.
   swapchain_images: Vec<Arc<Image>>,
-  render_pass: MdrRenderPass,
+  /// A render pass describes how to use attach and use image buffers when rendering.
+  render_pass: MdrRenderPass, // TODO - Deprecated in Vulkan 1.4
+  /// A viewport that serves as a render target.
   viewport: Viewport,
-  pipeline: MdrMeshPipeline,
+  /// The pipelines used for rendering various objects in a scene.
+  pipelines: MdrEnginePipelines,
+  /// Image buffers that serve as attachments in the renderpass.
   framebuffers: Vec<Arc<Framebuffer>>,
 
+  /// Owns and organizes resources for use by applications using the engine. Stores meshes,
+  /// textures, and materials.
   pub(crate) resource_manager: MdrResourceManager,
+  /// An allocator for Vulkan memory.
   memory_allocator: Arc<GenericMemoryAllocator<FreeListAllocator>>,
+  /// An allocator for Vulkan command buffers.
   command_buffer_allocator: Arc<StandardCommandBufferAllocator>,
+  /// An allocator for Vulkan descriptor sets.
   descriptor_set_allocator: Arc<StandardDescriptorSetAllocator>,
 
+  /// Tracks the state of the context across invocations of [`Self::draw`].
+  state: ContextState,
+}
+
+pub struct ContextState {
   window_was_resized: bool,
   should_recreate_swapchain: bool,
   updated_aspect_ratio: bool,
@@ -108,7 +129,7 @@ impl MdrGraphicsContext {
     };
     let (logical_device, queue) = create_logical_device(
       physical_device.clone(),
-      device_extensions,
+      &device_extensions,
       queue_family_index,
     );
     tracing::debug!("Created logical device");
@@ -140,9 +161,9 @@ impl MdrGraphicsContext {
     let viewport = window.create_viewport();
     tracing::debug!("Created viewport");
 
-    // Create mesh pipeline
-    let pipeline = MdrMeshPipeline::new(&logical_device, &render_pass, &viewport);
-    tracing::debug!("Created pipeline");
+    // Create pipelines
+    let pipelines = MdrEnginePipelines::new(&logical_device, &render_pass, &viewport);
+    tracing::debug!("Created pipelines");
 
     // Create framebuffers
     let framebuffers = create_framebuffers(&memory_allocator, &swapchain_images, &render_pass);
@@ -168,7 +189,7 @@ impl MdrGraphicsContext {
       swapchain_images,
       render_pass,
       viewport,
-      pipeline,
+      pipelines,
       framebuffers,
 
       resource_manager,
@@ -176,14 +197,16 @@ impl MdrGraphicsContext {
       command_buffer_allocator,
       descriptor_set_allocator,
 
-      window_was_resized: false,
-      should_recreate_swapchain: false,
-      updated_aspect_ratio: true,
-      frame_futures,
-      previous_frame_index: 0,
+      state: ContextState {
+        window_was_resized: false,
+        should_recreate_swapchain: false,
+        updated_aspect_ratio: true,
+        frame_futures,
+        previous_frame_index: 0,
 
-      last_draw_call: None,
-      title_decorator: String::with_capacity(64),
+        last_draw_call: None,
+        title_decorator: String::with_capacity(64),
+      },
     }
   }
 
@@ -208,7 +231,7 @@ impl MdrGraphicsContext {
         Ok(r) => r,
         Err(Validated::Error(VulkanError::OutOfDate)) => {
           tracing::debug!("Swapchain out of date, flagging for recreation");
-          self.should_recreate_swapchain = true;
+          self.state.should_recreate_swapchain = true;
           return; // No render this frame
         }
         Err(e) => panic!("Failed to acquire next swapchain image: {e}"),
@@ -218,14 +241,15 @@ impl MdrGraphicsContext {
     if is_suboptimal {
       tracing::trace!("Swapchain suboptimal, flagging for recreation");
       // We'll use it but recreate the swapchain on the next loop
-      self.should_recreate_swapchain = true;
+      self.state.should_recreate_swapchain = true;
     }
 
     // Get last frame's end-of-command-execution future (or present moment if no frame waiting)
-    let mut previous_frame_end = match self.frame_futures[self.previous_frame_index].take() {
-      Some(future) => future,
-      None => sync::now(self.logical_device.clone()).boxed(),
-    };
+    let mut previous_frame_end =
+      match self.state.frame_futures[self.state.previous_frame_index].take() {
+        Some(future) => future,
+        None => sync::now(self.logical_device.clone()).boxed(),
+      };
     // If we're waiting for any resources to load, chain those in
     if let Some(resource_future) = self.resource_manager.take_upload_futures() {
       previous_frame_end = previous_frame_end.join(resource_future).boxed();
@@ -235,7 +259,7 @@ impl MdrGraphicsContext {
 
     let command_buffer = self.create_command_buffer(
       &self.queue,
-      &self.pipeline,
+      &self.pipelines.mesh,
       &self.framebuffers[image_index as usize],
       scene,
     );
@@ -253,7 +277,7 @@ impl MdrGraphicsContext {
     let end_of_frame_future = match future {
       Ok(future) => future.boxed(),
       Err(Validated::Error(VulkanError::OutOfDate)) => {
-        self.should_recreate_swapchain = true;
+        self.state.should_recreate_swapchain = true;
         sync::now(self.logical_device.clone()).boxed()
       }
       Err(e) => {
@@ -263,35 +287,35 @@ impl MdrGraphicsContext {
     };
 
     // Store future and index for this frame's completion
-    self.frame_futures[image_index as usize] = Some(end_of_frame_future);
-    self.previous_frame_index = image_index as usize;
+    self.state.frame_futures[image_index as usize] = Some(end_of_frame_future);
+    self.state.previous_frame_index = image_index as usize;
     tracing::trace!("Completed draw");
   }
 
   fn display_engine_statistics(&mut self) {
-    let Some(last_draw_call) = &self.last_draw_call else {
-      self.last_draw_call = Some(Instant::now());
+    let Some(last_draw_call) = &self.state.last_draw_call else {
+      self.state.last_draw_call = Some(Instant::now());
       return;
     };
 
-    let delta_t = (Instant::now() - *last_draw_call).as_millis();
+    let delta_t = (*last_draw_call).elapsed().as_millis();
     let fps = 1000 / delta_t;
 
-    self.title_decorator.clear();
+    self.state.title_decorator.clear();
     write!(
-      &mut self.title_decorator,
+      &mut self.state.title_decorator,
       "draw time {delta_t} ms | {fps} fps"
     )
     .unwrap();
 
-    self.window.decorate_title(&self.title_decorator);
-    self.last_draw_call = Some(Instant::now());
+    self.window.decorate_title(&self.state.title_decorator);
+    self.state.last_draw_call = Some(Instant::now());
   }
 
   /// Performs updates based on the render surface's size.
   fn size_dependent_updates(&mut self) {
-    if self.window_was_resized || self.should_recreate_swapchain {
-      self.should_recreate_swapchain = false;
+    if self.state.window_was_resized || self.state.should_recreate_swapchain {
+      self.state.should_recreate_swapchain = false;
 
       // Recreate swapchain and framebuffers
       tracing::trace!("Recreating swapchain");
@@ -304,15 +328,18 @@ impl MdrGraphicsContext {
         &self.render_pass,
       );
 
-      if self.window_was_resized {
-        self.window_was_resized = false;
+      if self.state.window_was_resized {
+        self.state.window_was_resized = false;
 
         // Recreate viewport and pipeline
         tracing::trace!("Window resized, recreating pipeline");
         self.viewport.extent = self.window.dimensions().into();
-        self.pipeline.recreate(&self.render_pass, &self.viewport);
+        self
+          .pipelines
+          .mesh
+          .recreate(&self.render_pass, &self.viewport);
 
-        self.updated_aspect_ratio = true;
+        self.state.updated_aspect_ratio = true;
       }
     }
   }
@@ -325,14 +352,14 @@ impl MdrGraphicsContext {
 
   /// Set context to trigger size-dependent reinitialization
   pub const fn notify_resized(&mut self) {
-    self.window_was_resized = true;
+    self.state.window_was_resized = true;
   }
 
   /// Updates a scene's camera's aspect ratio to match the swapchain.
   pub fn update_scene_aspect_ratio(&mut self, scene: &mut MdrScene) {
-    if self.updated_aspect_ratio {
+    if self.state.updated_aspect_ratio {
       scene.camera.aspect_ratio = self.aspect_ratio();
-      self.updated_aspect_ratio = false;
+      self.state.updated_aspect_ratio = false;
     }
   }
 
@@ -408,11 +435,10 @@ impl MdrGraphicsContext {
       .collect();
 
     while let Some((object, parent_transform)) = render_list.pop_front() {
-      let object_transform = if let Some(pt) = parent_transform {
-        object.transform.matrix() * pt
-      } else {
-        object.transform.matrix()
-      };
+      let object_transform = parent_transform.map_or_else(
+        || object.transform.matrix(),
+        |pt| object.transform.matrix() * pt,
+      );
 
       render_list.extend(
         object
@@ -661,13 +687,13 @@ fn pick_physical_device(
 /// Create a Vulkan logical device and queue.
 fn create_logical_device(
   physical_device: Arc<PhysicalDevice>,
-  device_extensions: DeviceExtensions,
+  device_extensions: &DeviceExtensions,
   queue_family_index: u32,
 ) -> (Arc<Device>, Arc<Queue>) {
   let device_creation_results = Device::new(
     physical_device,
     DeviceCreateInfo {
-      enabled_extensions: device_extensions,
+      enabled_extensions: *device_extensions,
       queue_create_infos: vec![QueueCreateInfo {
         queue_family_index,
         ..Default::default()

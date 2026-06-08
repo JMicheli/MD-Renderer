@@ -76,12 +76,12 @@ pub fn open_obj(path: &Path) -> Option<MdrMeshData> {
 
     // Handle missing UVs by writting dummy UV values
     // TODO - Is this the right solution here?
-    if !model_uvs.is_empty() {
+    if model_uvs.is_empty() {
+      mesh_uvs.push(MdrVertex_uv { a_uv: [0.0, 0.0] });
+    } else {
       mesh_uvs.push(MdrVertex_uv {
         a_uv: [model_uvs[index_2d], model_uvs[index_2d + 1]],
       });
-    } else {
-      mesh_uvs.push(MdrVertex_uv { a_uv: [0.0, 0.0] })
     }
   }
 

@@ -94,7 +94,7 @@ impl std::ops::Add for MdrTranslation {
 
 impl std::ops::AddAssign for MdrTranslation {
   fn add_assign(&mut self, rhs: Self) {
-    *self = *self + rhs
+    *self = *self + rhs;
   }
 }
 
@@ -125,15 +125,15 @@ impl MdrRotation {
   }
 
   pub fn rotate_x(&mut self, angle: f32) {
-    self.0 *= UnitQuaternion::from_axis_angle(&Vector3::x_axis(), angle)
+    self.0 *= UnitQuaternion::from_axis_angle(&Vector3::x_axis(), angle);
   }
 
   pub fn rotate_y(&mut self, angle: f32) {
-    self.0 *= UnitQuaternion::from_axis_angle(&Vector3::y_axis(), angle)
+    self.0 *= UnitQuaternion::from_axis_angle(&Vector3::y_axis(), angle);
   }
 
   pub fn rotate_z(&mut self, angle: f32) {
-    self.0 *= UnitQuaternion::from_axis_angle(&Vector3::z_axis(), angle)
+    self.0 *= UnitQuaternion::from_axis_angle(&Vector3::z_axis(), angle);
   }
 }
 
@@ -155,7 +155,7 @@ impl MdrScale {
     self.0.z = z;
   }
 
-  pub fn identity() -> Self {
+  pub const fn identity() -> Self {
     Self(Vector3::new(1.0, 1.0, 1.0))
   }
 
