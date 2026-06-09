@@ -1,10 +1,14 @@
-use nalgebra::{Matrix4, Vector3};
 use std::{collections::VecDeque, fmt::Write, sync::Arc, time::Instant};
+
+use nalgebra::{Matrix4, Vector3};
 use winit::event_loop::ActiveEventLoop;
 
 use vulkano::{
   Validated, VulkanError, VulkanLibrary,
-  buffer::{Buffer, BufferCreateInfo, BufferUsage, Subbuffer},
+  buffer::{
+    BufferUsage, Subbuffer,
+    allocator::{SubbufferAllocator, SubbufferAllocatorCreateInfo},
+  },
   command_buffer::{
     AutoCommandBufferBuilder, CommandBufferUsage, PrimaryAutoCommandBuffer, RenderPassBeginInfo,
     SubpassBeginInfo, SubpassContents, SubpassEndInfo,
@@ -74,6 +78,8 @@ pub struct MdrGraphicsContext {
   pub(crate) resource_manager: MdrResourceManager,
   /// An allocator for Vulkan memory.
   memory_allocator: Arc<GenericMemoryAllocator<FreeListAllocator>>,
+  /// An allocator for data uploaded to the GPU each frame.
+  buffer_allocator: SubbufferAllocator,
   /// An allocator for Vulkan command buffers.
   command_buffer_allocator: Arc<StandardCommandBufferAllocator>,
   /// An allocator for Vulkan descriptor sets.
@@ -136,6 +142,15 @@ impl MdrGraphicsContext {
 
     // Create allocators
     let memory_allocator = Arc::new(StandardMemoryAllocator::new_default(logical_device.clone()));
+    let buffer_allocator = SubbufferAllocator::new(
+      memory_allocator.clone(),
+      SubbufferAllocatorCreateInfo {
+        buffer_usage: BufferUsage::STORAGE_BUFFER,
+        memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
+          | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
+        ..Default::default()
+      },
+    );
     let command_buffer_allocator = Arc::new(StandardCommandBufferAllocator::new(
       logical_device.clone(),
       StandardCommandBufferAllocatorCreateInfo {
@@ -194,6 +209,7 @@ impl MdrGraphicsContext {
 
       resource_manager,
       memory_allocator,
+      buffer_allocator,
       command_buffer_allocator,
       descriptor_set_allocator,
 
@@ -427,6 +443,59 @@ impl MdrGraphicsContext {
       .unwrap();
 
     // Render objects
+    self.render_objects(scene, pipeline, &mut builder);
+
+    // End render pass and build
+    builder.end_render_pass(SubpassEndInfo::default()).unwrap();
+    let command_buffer = builder.build().unwrap();
+
+    tracing::trace!("Created command buffer");
+    command_buffer
+  }
+
+  /// Uploads data representing a scene's non-object data, i.e., the camera and lights.
+  fn upload_scene_data(&self, scene: &MdrScene) -> Subbuffer<MdrSceneData> {
+    // Camera data
+    let view_matrix = scene.camera.get_view_matrix();
+    let projection_matrix = scene.camera.get_projection_matrix();
+
+    let view_transform_column = view_matrix.column(3);
+    let position_vector = Vector3::new(
+      view_transform_column.x,
+      view_transform_column.y,
+      view_transform_column.z,
+    );
+    // Camera data object
+    let camera = CameraData {
+      position: Padded(position_vector.into()),
+      view: view_matrix.into(),
+      proj: projection_matrix.into(),
+    };
+
+    // Lighting data
+    let point_lights: [PointLightData; MAX_POINT_LIGHTS] =
+      scene.lights.get_light_array().map(|light| PointLightData {
+        color: Padded(light.color.into()),
+        position: light.translation.into(),
+        brightness: light.brightness,
+      });
+
+    let subbuffer = self.buffer_allocator.allocate_sized().unwrap();
+    *subbuffer.write().unwrap() = MdrSceneData {
+      camera,
+      point_lights,
+      point_light_count: scene.lights.get_count(),
+    };
+
+    subbuffer
+  }
+
+  fn render_objects(
+    &self,
+    scene: &MdrScene,
+    pipeline: &MdrMeshPipeline,
+    builder: &mut AutoCommandBufferBuilder<PrimaryAutoCommandBuffer>,
+  ) {
     // TODO - Document more robustly (esp. collection and transform handling)
     let mut render_list: VecDeque<(&MdrRenderObject, Option<Matrix4<f32>>)> = scene
       .scene_objects
@@ -529,59 +598,6 @@ impl MdrGraphicsContext {
       // TODO - Why is this unsafe?
       unsafe { builder.draw_indexed(mesh_handle.index_count, 1, 0, 0, 0) }.unwrap();
     }
-
-    // End render pass and build
-    builder.end_render_pass(SubpassEndInfo::default()).unwrap();
-    let command_buffer = builder.build().unwrap();
-
-    tracing::trace!("Created command buffer");
-    command_buffer
-  }
-
-  /// Uploads data representing a scene's non-object data, i.e., the camera and lights.
-  fn upload_scene_data(&self, scene: &MdrScene) -> Subbuffer<MdrSceneData> {
-    // Camera data
-    let view_matrix = scene.camera.get_view_matrix();
-    let projection_matrix = scene.camera.get_projection_matrix();
-
-    let view_transform_column = view_matrix.column(3);
-    let position_vector = Vector3::new(
-      view_transform_column.x,
-      view_transform_column.y,
-      view_transform_column.z,
-    );
-    // Camera data object
-    let camera = CameraData {
-      position: Padded(position_vector.into()),
-      view: view_matrix.into(),
-      proj: projection_matrix.into(),
-    };
-
-    // Lighting data
-    let point_lights: [PointLightData; MAX_POINT_LIGHTS] =
-      scene.lights.get_light_array().map(|light| PointLightData {
-        color: Padded(light.color.into()),
-        position: light.translation.into(),
-        brightness: light.brightness,
-      });
-    Buffer::from_data(
-      self.memory_allocator.clone(),
-      BufferCreateInfo {
-        usage: BufferUsage::STORAGE_BUFFER,
-        ..Default::default()
-      },
-      AllocationCreateInfo {
-        memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
-          | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
-        ..Default::default()
-      },
-      MdrSceneData {
-        camera,
-        point_lights,
-        point_light_count: scene.lights.get_count(),
-      },
-    )
-    .unwrap()
   }
 }
 
