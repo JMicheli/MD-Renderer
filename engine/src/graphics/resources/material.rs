@@ -1,8 +1,9 @@
-use vulkano::buffer::Subbuffer;
+use std::sync::Arc;
 
-use super::{MdrGpuTextureHandle, MdrTexture, color::MdrRgb};
+use vulkano::descriptor_set::DescriptorSet;
 
 pub use crate::graphics::shaders::mesh_fragment_shader::MdrMaterialUniformData;
+use crate::resources::{MdrRgb, MdrTexture};
 
 #[derive(Debug, Clone)]
 pub struct MdrMaterial {
@@ -20,8 +21,5 @@ pub struct MdrMaterialCreateInfo {
 
 #[derive(Clone)]
 pub struct MdrGpuMaterialHandle {
-  pub(crate) material_buffer: Subbuffer<[MdrMaterialUniformData]>,
-  pub(crate) diffuse_map: MdrGpuTextureHandle,
-  pub(crate) roughness_map: MdrGpuTextureHandle,
-  pub(crate) normal_map: MdrGpuTextureHandle,
+  pub(crate) descriptor_set: Arc<DescriptorSet>,
 }

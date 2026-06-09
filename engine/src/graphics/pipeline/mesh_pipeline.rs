@@ -1,9 +1,10 @@
 use std::sync::Arc;
 
 use vulkano::{
+  descriptor_set::layout::DescriptorSetLayout,
   device::Device,
   pipeline::{
-    GraphicsPipeline, PipelineLayout, PipelineShaderStageCreateInfo,
+    GraphicsPipeline, Pipeline, PipelineLayout, PipelineShaderStageCreateInfo,
     graphics::{
       GraphicsPipelineCreateInfo,
       color_blend::{ColorBlendAttachmentState, ColorBlendState},
@@ -29,6 +30,7 @@ use crate::{
 };
 
 /// The pipeline used for mesh drawing.
+#[derive(Clone)]
 pub struct MdrMeshPipeline {
   logical_device: Arc<Device>,
   pub graphics_pipeline: Arc<GraphicsPipeline>,
@@ -149,5 +151,15 @@ impl MdrMeshPipeline {
       },
     )
     .unwrap()
+  }
+
+  pub fn descriptor_set_layout(&self) -> Arc<DescriptorSetLayout> {
+    self
+      .graphics_pipeline
+      .layout()
+      .set_layouts()
+      .get(1)
+      .unwrap()
+      .clone()
   }
 }

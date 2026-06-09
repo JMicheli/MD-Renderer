@@ -61,7 +61,6 @@ impl MdrEngine {
         self.input_context.mouse_input(state, button);
       }
       WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
-        // TODO - I think I may need to use this to fix a crash?
         tracing::info!("Scale factor changed to {scale_factor}");
       }
       WindowEvent::RedrawRequested => {
@@ -90,7 +89,7 @@ impl MdrEngine {
 /// This structure holds the winit application state and implements [`ApplicationHandler`]. It is
 /// responsible for creating the [`MdrEngine`] and issuing calls to be handled by the provided
 /// [`MdrApplication`].
-///
+///Al
 /// The only way it should ever be created is by running [`crate::application::run_application`].
 pub struct InternalApplication {
   engine: Option<MdrEngine>,

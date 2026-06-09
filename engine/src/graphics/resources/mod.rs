@@ -16,6 +16,7 @@ use vulkano::{
     AutoCommandBufferBuilder, CommandBufferUsage, CopyBufferToImageInfo,
     PrimaryCommandBufferAbstract, allocator::StandardCommandBufferAllocator,
   },
+  descriptor_set::{DescriptorSet, WriteDescriptorSet, allocator::DescriptorSetAllocator},
   device::{Device, Queue},
   image::{
     Image, ImageCreateInfo, ImageType, ImageUsage,
@@ -36,6 +37,8 @@ pub use mesh::{MdrGpuMeshHandle, MdrMesh, MdrMeshData};
 pub use texture::{MdrGpuTextureHandle, MdrTexture};
 pub use vertex::{MdrVertex_norm, MdrVertex_pos, MdrVertex_uv};
 
+use crate::graphics::pipeline::MdrEnginePipelines;
+
 use self::{
   color::MdrColor,
   texture::{MdrSamplerMode, MdrTextureCreateInfo},
@@ -50,6 +53,8 @@ pub struct MdrResourceManager {
   logical_device: Arc<Device>,
   memory_allocator: Arc<GenericMemoryAllocator<FreeListAllocator>>,
   command_buffer_allocator: Arc<StandardCommandBufferAllocator>,
+  descriptor_set_allocator: Arc<dyn DescriptorSetAllocator>,
+  pipelines: MdrEnginePipelines,
   queue: Arc<Queue>,
 
   vertex_allocator: SubbufferAllocator,
@@ -69,6 +74,8 @@ impl MdrResourceManager {
     logical_device: Arc<Device>,
     memory_allocator: Arc<GenericMemoryAllocator<FreeListAllocator>>,
     command_buffer_allocator: Arc<StandardCommandBufferAllocator>,
+    descriptor_set_allocator: Arc<dyn DescriptorSetAllocator>,
+    pipelines: MdrEnginePipelines,
     queue: Arc<Queue>,
   ) -> Self {
     // Mesh memory handler initialization
@@ -112,6 +119,8 @@ impl MdrResourceManager {
       logical_device,
       memory_allocator,
       command_buffer_allocator,
+      descriptor_set_allocator,
+      pipelines,
       queue,
 
       vertex_allocator,
@@ -313,6 +322,13 @@ impl MdrResourceManager {
     self.texture_library.remove(&String::from(name));
   }
 
+  fn fetch_texture_by_name(&self, name: &str) -> Result<MdrGpuTextureHandle, MdrResourceError> {
+    self.texture_library.get(name).map_or_else(
+      || Err(MdrResourceError::TextureNotFound),
+      |texture| Ok(texture.clone()),
+    )
+  }
+
   // /////////////////
   // Material handling
   // /////////////////
@@ -324,7 +340,7 @@ impl MdrResourceManager {
     material_create_info: &MdrMaterialCreateInfo,
     name: &str,
   ) -> Result<MdrMaterial, MdrResourceError> {
-    // Check that the mesh name isn't already in use
+    // Check that the material name isn't already in use
     if self.material_library.contains_key(name) {
       tracing::error!("Material library already contains name: {name}");
       return Err(MdrResourceError::DuplicateMaterialName);
@@ -337,27 +353,9 @@ impl MdrResourceManager {
     };
 
     // Get maps from texture library
-    let diffuse_map = match self.texture_library.get(&material_create_info.diffuse.name) {
-      Some(texture) => texture.clone(),
-      None => {
-        return Err(MdrResourceError::TextureNotFound);
-      }
-    };
-    let roughness_map = match self
-      .texture_library
-      .get(&material_create_info.roughness.name)
-    {
-      Some(texture) => texture.clone(),
-      None => {
-        return Err(MdrResourceError::TextureNotFound);
-      }
-    };
-    let normal_map = match self.texture_library.get(&material_create_info.normal.name) {
-      Some(texture) => texture.clone(),
-      None => {
-        return Err(MdrResourceError::TextureNotFound);
-      }
-    };
+    let diffuse_map = self.fetch_texture_by_name(&material_create_info.diffuse.name)?;
+    let roughness_map = self.fetch_texture_by_name(&material_create_info.roughness.name)?;
+    let normal_map = self.fetch_texture_by_name(&material_create_info.normal.name)?;
 
     // Push material to GPU and store in library
     let material_handle =
@@ -579,12 +577,37 @@ impl MdrResourceManager {
       .unwrap()
       .copy_from_slice(&material_data);
 
-    MdrGpuMaterialHandle {
-      material_buffer,
-      diffuse_map,
-      roughness_map,
-      normal_map,
-    }
+    // Upload material data
+    let descriptor_set = DescriptorSet::new(
+      self.descriptor_set_allocator.clone(),
+      self.pipelines.mesh.descriptor_set_layout(),
+      [
+        // Material uniform data
+        WriteDescriptorSet::buffer(0, material_buffer),
+        // Diffuse map image sampler
+        WriteDescriptorSet::image_view_sampler(
+          1,
+          diffuse_map.image_view.clone(),
+          diffuse_map.sampler,
+        ),
+        // Roughness map image sampler
+        WriteDescriptorSet::image_view_sampler(
+          2,
+          roughness_map.image_view.clone(),
+          roughness_map.sampler,
+        ),
+        // Normal map image sampler
+        WriteDescriptorSet::image_view_sampler(
+          3,
+          normal_map.image_view.clone(),
+          normal_map.sampler,
+        ),
+      ],
+      [],
+    )
+    .unwrap();
+
+    MdrGpuMaterialHandle { descriptor_set }
   }
 
   /// Gets a sampler with the input `MdrSamplerMode` by either grabbing a reference off the

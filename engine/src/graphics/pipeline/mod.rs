@@ -10,6 +10,7 @@ use vulkano::{device::Device, pipeline::graphics::viewport::Viewport};
 
 use crate::graphics::render_pass::MdrRenderPass;
 
+#[derive(Clone)]
 pub struct MdrEnginePipelines {
   pub mesh: MdrMeshPipeline,
 }

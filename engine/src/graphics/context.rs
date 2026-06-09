@@ -192,6 +192,8 @@ impl MdrGraphicsContext {
       logical_device.clone(),
       memory_allocator.clone(),
       command_buffer_allocator.clone(),
+      descriptor_set_allocator.clone(),
+      pipelines.clone(),
       queue.clone(),
     );
 
@@ -540,48 +542,12 @@ impl MdrGraphicsContext {
         .bind_index_buffer(mesh_handle.index_buffer.clone())
         .unwrap();
 
-      // Upload material data
-      // TODO Order by material and bind once per mat
-      let material_descriptor_set = DescriptorSet::new(
-        self.descriptor_set_allocator.clone(),
-        pipeline
-          .graphics_pipeline
-          .layout()
-          .set_layouts()
-          .get(1)
-          .unwrap()
-          .clone(),
-        [
-          // Material uniform data
-          WriteDescriptorSet::buffer(0, material_handle.material_buffer.clone()),
-          // Diffuse map image sampler
-          WriteDescriptorSet::image_view_sampler(
-            1,
-            material_handle.diffuse_map.image_view.clone(),
-            material_handle.diffuse_map.sampler.clone(),
-          ),
-          // Roughness map image sampler
-          WriteDescriptorSet::image_view_sampler(
-            2,
-            material_handle.roughness_map.image_view.clone(),
-            material_handle.roughness_map.sampler.clone(),
-          ),
-          // Normal map image sampler
-          WriteDescriptorSet::image_view_sampler(
-            3,
-            material_handle.normal_map.image_view.clone(),
-            material_handle.normal_map.sampler.clone(),
-          ),
-        ],
-        [],
-      )
-      .unwrap();
       builder
         .bind_descriptor_sets(
           PipelineBindPoint::Graphics,
           pipeline.graphics_pipeline.layout().clone(),
           1,
-          material_descriptor_set.clone(),
+          material_handle.descriptor_set.clone(),
         )
         .unwrap();
 
