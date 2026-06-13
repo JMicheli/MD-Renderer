@@ -1,4 +1,5 @@
 #version 450
+#include <data_types.glsl>
 
 // Configuration
 // /////////////
@@ -17,26 +18,6 @@ layout(location = 2) out mat3 v_TBN;
 
 // Input buffer objects
 // ////////////////////
-
-// Data representing a camera in the scene
-struct CameraData {
-  // Camera's position in world space
-  vec3 position;
-  // View transformation matrix
-  mat4 view;
-  // Perspective projection matrix
-  mat4 proj;
-};
-
-// Data representing a point light
-struct PointLightData {
-  // The RGB color of the light
-  vec3 color;
-  // The position of the light in world space
-  vec3 position;
-  // The brightness factor of the light
-  float brightness;
-};
 
 // Data representing the scene
 layout(set = 0, binding = 0) buffer MdrSceneData {
@@ -62,13 +43,14 @@ void main() {
   vec4 world_position =  object.transformation_matrix * vec4(a_position, 1.0);
 
   // Calculate surface normal at input vertex
-  // TODO fix to use transpose inverse (or probably just remove nonuniform scaling)
+  // TODO - fix to use transpose inverse (or probably just remove nonuniform scaling)
   vec3 normal = normalize(mat3(object.transformation_matrix) * a_normal);
   // Write tangent and bitangent vectors for normal mapping
   vec3 tangent = normalize(mat3(object.transformation_matrix) * a_tangent);
   // Gram-Schmidt re-orthogonalization of the tangent with respect to the normal
   tangent = normalize(tangent - dot(tangent, normal) * normal);
   vec3 bitangent = normalize(cross(tangent, normal));
+  // Write output tangent, bitangent, and normal
   v_TBN = mat3(tangent, bitangent, normal);
   
   // Write output UVs

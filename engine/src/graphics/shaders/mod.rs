@@ -5,6 +5,7 @@ use vulkano::{Validated, VulkanError, device::Device, shader::ShaderModule};
 pub mod mesh_vertex_shader {
   vulkano_shaders::shader! {
     ty: "vertex",
+    include: ["src/graphics/shaders/include"],
     path: "src/graphics/shaders/mesh.vert",
   }
 }
@@ -12,6 +13,7 @@ pub mod mesh_vertex_shader {
 pub mod mesh_fragment_shader {
   vulkano_shaders::shader! {
     ty: "fragment",
+    include: ["src/graphics/shaders/include"],
     path: "src/graphics/shaders/mesh.frag",
   }
 }
@@ -28,6 +30,7 @@ pub fn load_mesh_shaders(logical_device: &Arc<Device>) -> (Arc<ShaderModule>, Ar
 pub mod light_vertex_shader {
   vulkano_shaders::shader! {
     ty: "vertex",
+    include: ["src/graphics/shaders/include"],
     path: "src/graphics/shaders/light.vert",
   }
 }
