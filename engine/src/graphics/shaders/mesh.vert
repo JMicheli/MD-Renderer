@@ -1,9 +1,6 @@
 #version 450
 #include <data_types.glsl>
-
-// Configuration
-// /////////////
-#define MAX_POINT_LIGHTS 10
+#include <consts.glsl>
 
 // Inputs/Ouputs
 // /////////////

@@ -1,13 +1,11 @@
 #version 450
 #include <data_types.glsl>
+#include <consts.glsl>
 
 // Configuration
 // /////////////
-#define MAX_POINT_LIGHTS 10
 #define GAMMA_FACTOR 2.2
 #define AMBIENT_FACTOR 0.05
-
-#define PI 3.14159
 
 // Inputs/Ouputs
 // /////////////
