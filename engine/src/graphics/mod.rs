@@ -3,6 +3,7 @@ mod pipeline;
 mod render_pass;
 pub mod resources;
 mod shaders;
+mod vulkan_constructors;
 mod window;
 
 pub use context::MdrGraphicsContext;
