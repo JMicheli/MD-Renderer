@@ -18,6 +18,24 @@ pub mod mesh_fragment_shader {
   }
 }
 
+impl std::fmt::Debug for mesh_fragment_shader::MdrMeshMaterialData {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    f.debug_struct("MdrMeshMaterialData")
+      .field("base_color_factor", &self.base_color_factor)
+      .field("roughness_factor", &self.roughness_factor)
+      .field("metallic_factor", &self.metallic_factor)
+      .field("diffuse_texture_set", &self.diffuse_texture_set)
+      .field(
+        "metallic_roughness_texture_set",
+        &self.metallic_roughness_texture_set,
+      )
+      .field("normal_texture_set", &self.normal_texture_set)
+      .field("occlusion_texture_set", &self.occlusion_texture_set)
+      .field("emissive_texture_set", &self.emissive_texture_set)
+      .finish()
+  }
+}
+
 pub fn load_mesh_shaders(logical_device: &Arc<Device>) -> (Arc<ShaderModule>, Arc<ShaderModule>) {
   // Vertex shader
   let vs = validate_load_result(mesh_vertex_shader::load(logical_device.clone()));
@@ -57,8 +75,11 @@ fn validate_load_result(
 ) -> Arc<ShaderModule> {
   match output {
     Ok(value) => value,
-    Err(e) => {
-      panic!("Failed to load shader module: {e}");
-    }
+    Err(e) => match e {
+      Validated::Error(e) => panic!("Failed to load shader module due to Vulkan error: {e}"),
+      Validated::ValidationError(e) => {
+        panic!("Failed to load shader module due to validation error: {e}")
+      }
+    },
   }
 }

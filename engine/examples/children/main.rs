@@ -1,6 +1,6 @@
 use mdr_engine::{
   MdrApplication, MdrEngine, MdrInputState, MdrRunOptions,
-  resources::{MdrMaterial, MdrRgb, color::MdrColor},
+  resources::{MdrMaterial, MdrMeshMaterialCreateInfo, color::MdrColor},
   scene::{MdrLight, MdrRenderObject, MdrScene},
 };
 
@@ -27,11 +27,11 @@ impl MdrApplication for BasicExampleApp {
   fn initialize(&mut self, engine: &mut MdrEngine) {
     let sphere_mesh = engine
       .manage_resources()
-      .load_mesh(&mesh_asset("sphere.obj"), "sphere")
+      .load_mesh_obj(&mesh_asset("sphere.obj"), "sphere")
       .unwrap();
     let cube_mesh = engine
       .manage_resources()
-      .load_mesh(&mesh_asset("cube.obj"), "cube")
+      .load_mesh_obj(&mesh_asset("cube.obj"), "cube")
       .unwrap();
 
     // Add spheres
@@ -93,11 +93,12 @@ pub fn red_material(name: &str, engine: &mut MdrEngine) -> MdrMaterial {
   make_material(
     engine,
     name,
-    base_color,
-    roughness,
-    normal,
-    MdrRgb::white(),
-    20.0,
+    &MdrMeshMaterialCreateInfo {
+      diffuse: Some(base_color),
+      metallic_roughness: Some(roughness),
+      normal: Some(normal),
+      ..Default::default()
+    },
   )
 }
 
@@ -118,10 +119,11 @@ pub fn green_material(name: &str, engine: &mut MdrEngine) -> MdrMaterial {
   make_material(
     engine,
     name,
-    base_color,
-    roughness,
-    normal,
-    MdrRgb::white(),
-    20.0,
+    &MdrMeshMaterialCreateInfo {
+      diffuse: Some(base_color),
+      metallic_roughness: Some(roughness),
+      normal: Some(normal),
+      ..Default::default()
+    },
   )
 }

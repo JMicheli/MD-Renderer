@@ -3,7 +3,7 @@ use std::sync::Arc;
 use vulkano::{
   VulkanLibrary,
   device::{
-    Device, DeviceCreateInfo, DeviceExtensions, Queue, QueueCreateInfo, QueueFlags,
+    Device, DeviceCreateInfo, DeviceExtensions, DeviceFeatures, Queue, QueueCreateInfo, QueueFlags,
     physical::{PhysicalDevice, PhysicalDeviceType},
   },
   format::Format,
@@ -82,17 +82,13 @@ pub fn create_instance(
 /// Select a physical device to use. Returns the device and associated queue family index.
 pub fn pick_physical_device(
   instance: &Arc<Instance>,
+  device_extensions: &DeviceExtensions,
   surface: &Arc<Surface>,
 ) -> (Arc<PhysicalDevice>, u32) {
-  let device_extensions = DeviceExtensions {
-    khr_swapchain: true,
-    ..DeviceExtensions::empty()
-  };
-
   let device_creation_results = instance
     .enumerate_physical_devices()
     .unwrap()
-    .filter(|p| p.supported_extensions().contains(&device_extensions))
+    .filter(|p| p.supported_extensions().contains(device_extensions))
     .filter_map(|p| {
       p.queue_family_properties()
         .iter()
@@ -112,21 +108,30 @@ pub fn pick_physical_device(
       _ => 5,
     });
 
-  device_creation_results.unwrap_or_else(|| {
+  let device = device_creation_results.unwrap_or_else(|| {
     panic!("Failed to find physical device and queue family.");
-  })
+  });
+
+  println!(
+    "Supported device features: {:?}",
+    device.0.supported_features()
+  );
+
+  device
 }
 
 /// Create a Vulkan logical device and queue.
 pub fn create_logical_device(
   physical_device: Arc<PhysicalDevice>,
   device_extensions: &DeviceExtensions,
+  enabled_features: &DeviceFeatures,
   queue_family_index: u32,
 ) -> (Arc<Device>, Arc<Queue>) {
   let device_creation_results = Device::new(
     physical_device,
     DeviceCreateInfo {
       enabled_extensions: *device_extensions,
+      enabled_features: *enabled_features,
       queue_create_infos: vec![QueueCreateInfo {
         queue_family_index,
         ..Default::default()

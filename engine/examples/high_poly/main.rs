@@ -1,6 +1,6 @@
 use mdr_engine::{
   MdrApplication, MdrEngine, MdrInputState, MdrRunOptions,
-  resources::{MdrMaterialCreateInfo, MdrRgb, color::MdrColor},
+  resources::{MdrMeshMaterialCreateInfo, color::MdrColor},
   scene::{MdrLight, MdrRenderObject, MdrScene},
 };
 
@@ -32,7 +32,7 @@ impl MdrApplication for HighPolyExampleApp {
     // Load dragon mesh
     let dragon_mesh = engine
       .manage_resources()
-      .load_mesh(&mesh_asset("dragon.obj"), "dragon_mesh")
+      .load_mesh_obj(&mesh_asset("dragon.obj"), "dragon_mesh")
       .unwrap();
 
     // Create textures for material
@@ -53,12 +53,11 @@ impl MdrApplication for HighPolyExampleApp {
     let dragon_mat = engine
       .manage_resources()
       .create_material(
-        &MdrMaterialCreateInfo {
-          diffuse,
-          roughness,
-          normal,
-          specular_color: MdrRgb::white(),
-          shininess: 30.0,
+        &MdrMeshMaterialCreateInfo {
+          diffuse: Some(diffuse),
+          metallic_roughness: Some(roughness),
+          normal: Some(normal),
+          ..Default::default()
         },
         "dragon_mat",
       )

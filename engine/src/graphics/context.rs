@@ -15,7 +15,7 @@ use vulkano::{
     allocator::{StandardCommandBufferAllocator, StandardCommandBufferAllocatorCreateInfo},
   },
   descriptor_set::{DescriptorSet, WriteDescriptorSet, allocator::StandardDescriptorSetAllocator},
-  device::{Device, DeviceExtensions, Queue},
+  device::{Device, DeviceExtensions, DeviceFeatures, Queue},
   format::ClearValue,
   image::Image,
   memory::allocator::{
@@ -110,6 +110,18 @@ impl MdrGraphicsContext {
     let instance = create_instance(library, event_loop, debug_enabled);
     tracing::debug!("Created vulkan instance");
 
+    // Set enabled Vulkan device extensions
+    let device_extensions = DeviceExtensions {
+      khr_swapchain: true,
+      ..DeviceExtensions::empty()
+    };
+    // Set enabeled Vulkan device features
+    let enabled_features = DeviceFeatures {
+      runtime_descriptor_array: true,
+      descriptor_binding_variable_descriptor_count: true,
+      ..Default::default()
+    };
+
     // Create window
     let window_options = MdrWindowOptions {
       width: 800,
@@ -121,20 +133,18 @@ impl MdrGraphicsContext {
     tracing::debug!("Created window");
 
     // Select physical device and queue
-    let (physical_device, queue_family_index) = pick_physical_device(&instance, &window.surface);
+    let (physical_device, queue_family_index) =
+      pick_physical_device(&instance, &device_extensions, &window.surface);
 
     let device_name = &physical_device.properties().device_name;
     let device_type = physical_device.properties().device_type;
     tracing::info!("Using device: {device_name} (type: {device_type:?})");
 
     // Create logical device
-    let device_extensions = DeviceExtensions {
-      khr_swapchain: true,
-      ..DeviceExtensions::empty()
-    };
     let (logical_device, queue) = create_logical_device(
       physical_device.clone(),
       &device_extensions,
+      &enabled_features,
       queue_family_index,
     );
     tracing::debug!("Created logical device");
@@ -380,7 +390,7 @@ impl MdrGraphicsContext {
     }
   }
 
-  /// Generate a command buffer for drawing a `MdrScene`.
+  /// Generate a command buffer for drawing an [`MdrScene`].
   fn create_command_buffer(
     &self,
     queue: &Arc<Queue>,

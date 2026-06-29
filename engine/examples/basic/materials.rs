@@ -1,7 +1,7 @@
 use mdr_engine::{
   MdrEngine,
   resources::{
-    MdrColorType, MdrMaterial, MdrRgb, MdrTexture,
+    MdrColorType, MdrMaterial, MdrMeshMaterialCreateInfo, MdrTexture,
     texture::{MdrSamplerMode, MdrTextureCreateInfo},
   },
 };
@@ -15,11 +15,12 @@ pub fn metal_plates(name: &str, engine: &mut MdrEngine) -> MdrMaterial {
   make_material(
     engine,
     name,
-    metal_plates_base_color,
-    metal_plates_roughness,
-    metal_plates_normal,
-    MdrRgb::white(),
-    20.0,
+    &MdrMeshMaterialCreateInfo {
+      diffuse: Some(metal_plates_base_color),
+      metallic_roughness: Some(metal_plates_roughness),
+      normal: Some(metal_plates_normal),
+      ..Default::default()
+    },
   )
 }
 
@@ -30,11 +31,12 @@ pub fn blue_tile(name: &str, engine: &mut MdrEngine) -> MdrMaterial {
   make_material(
     engine,
     name,
-    blue_tiles_base_color,
-    blue_tiles_roughness,
-    blue_tiles_normal,
-    MdrRgb::white(),
-    20.0,
+    &MdrMeshMaterialCreateInfo {
+      diffuse: Some(blue_tiles_base_color),
+      metallic_roughness: Some(blue_tiles_roughness),
+      normal: Some(blue_tiles_normal),
+      ..Default::default()
+    },
   )
 }
 
@@ -45,11 +47,12 @@ pub fn wood_planks(name: &str, engine: &mut MdrEngine) -> MdrMaterial {
   make_material(
     engine,
     name,
-    wood_planks_base_color,
-    wood_planks_roughness,
-    wood_planks_normal,
-    MdrRgb::white(),
-    10.0,
+    &MdrMeshMaterialCreateInfo {
+      diffuse: Some(wood_planks_base_color),
+      metallic_roughness: Some(wood_planks_roughness),
+      normal: Some(wood_planks_normal),
+      ..Default::default()
+    },
   )
 }
 
@@ -59,11 +62,14 @@ pub fn white_bricks(name: &str, engine: &mut MdrEngine) -> MdrMaterial {
   make_material(
     engine,
     name,
-    white_bricks_base_color,
-    white_bricks_roughness,
-    white_bricks_normal,
-    MdrRgb::white(),
-    2.0,
+    &MdrMeshMaterialCreateInfo {
+      diffuse: Some(white_bricks_base_color),
+      metallic_roughness: Some(white_bricks_roughness),
+      normal: Some(white_bricks_normal),
+      base_roughness: 1.0,
+      base_metallic: 0.0,
+      ..Default::default()
+    },
   )
 }
 

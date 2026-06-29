@@ -31,7 +31,7 @@ use vulkano::{
 
 pub use color::{MdrColorType, MdrRgb, MdrRgba};
 pub use material::{
-  MdrGpuMaterialHandle, MdrMaterial, MdrMaterialCreateInfo, MdrMaterialUniformData,
+  MdrGpuMaterialHandle, MdrMaterial, MdrMeshMaterialCreateInfo, MdrMeshMaterialData,
 };
 pub use mesh::{MdrGpuMeshHandle, MdrMesh, MdrMeshData};
 pub use texture::{MdrGpuTextureHandle, MdrTexture};
@@ -152,29 +152,6 @@ impl MdrResourceManager {
 
     let Some(mesh_data) = mesh::open_obj(path) else {
       return Err(MdrResourceError::ObjLoadError);
-    };
-    tracing::debug!("Loaded obj file: {path:?}");
-
-    let mesh_handle = self.upload_mesh_to_gpu(&mesh_data);
-    self.mesh_library.insert(String::from(name), mesh_handle);
-    tracing::debug!("Added {name} to mesh library");
-
-    Ok(MdrMesh {
-      name: String::from(name),
-    })
-  }
-
-  pub fn load_mesh(&mut self, path: &Path, name: &str) -> Result<MdrMesh, MdrResourceError> {
-    // open_model_assimp
-
-    // Check that the mesh name isn't already in use
-    if self.mesh_library.contains_key(name) {
-      tracing::error!("Mesh library already contains name: {name}");
-      return Err(MdrResourceError::DuplicateMeshName);
-    }
-
-    let Some(mesh_data) = mesh::open_obj(path) else {
-      return Err(MdrResourceError::AssimpLoadError);
     };
     tracing::debug!("Loaded obj file: {path:?}");
 
@@ -333,11 +310,11 @@ impl MdrResourceManager {
   // Material handling
   // /////////////////
 
-  /// Creates a material wih the input `material_create_info` and stores it in the material
+  /// Creates a material wih the input `create_info` and stores it in the material
   /// library under the key `name` for future use.
   pub fn create_material(
     &mut self,
-    material_create_info: &MdrMaterialCreateInfo,
+    create_info: &MdrMeshMaterialCreateInfo,
     name: &str,
   ) -> Result<MdrMaterial, MdrResourceError> {
     // Check that the material name isn't already in use
@@ -346,20 +323,43 @@ impl MdrResourceManager {
       return Err(MdrResourceError::DuplicateMaterialName);
     }
 
-    // Generate material uniform buffer contents from create info
-    let material = MdrMaterialUniformData {
-      specular_color: material_create_info.specular_color.into(),
-      shininess: material_create_info.shininess,
+    // Helper function and state for assigning texture indices and building
+    // a texture image view/sampler list to upload to the GPU.
+    // TODO - Remove unwraps
+    let mut textures = Vec::new();
+    let mut get_texture_idx = |texture: &MdrTexture| -> i32 {
+      let idx = i32::try_from(textures.len()).unwrap();
+      let texture_handle = self.fetch_texture_by_name(&texture.name).unwrap();
+      textures.push((texture_handle.image_view.clone(), texture_handle.sampler));
+      idx
     };
 
-    // Get maps from texture library
-    let diffuse_map = self.fetch_texture_by_name(&material_create_info.diffuse.name)?;
-    let roughness_map = self.fetch_texture_by_name(&material_create_info.roughness.name)?;
-    let normal_map = self.fetch_texture_by_name(&material_create_info.normal.name)?;
+    // Generate material uniform buffer contents from create info
+    let material = MdrMeshMaterialData {
+      base_color_factor: create_info.base_color.into(),
+      roughness_factor: create_info.base_roughness,
+      metallic_factor: create_info.base_metallic,
+      diffuse_texture_set: create_info
+        .diffuse
+        .as_ref()
+        .map_or(-1, &mut get_texture_idx),
+      metallic_roughness_texture_set: create_info
+        .metallic_roughness
+        .as_ref()
+        .map_or(-1, &mut get_texture_idx),
+      normal_texture_set: create_info.normal.as_ref().map_or(-1, &mut get_texture_idx),
+      occlusion_texture_set: create_info
+        .occlusion
+        .as_ref()
+        .map_or(-1, &mut get_texture_idx),
+      emissive_texture_set: create_info
+        .emissive
+        .as_ref()
+        .map_or(-1, &mut get_texture_idx),
+    };
 
     // Push material to GPU and store in library
-    let material_handle =
-      self.upload_material_to_gpu(material, diffuse_map, roughness_map, normal_map);
+    let material_handle = self.upload_material_to_gpu(material, textures);
     self
       .material_library
       .insert(String::from(name), material_handle);
@@ -370,7 +370,7 @@ impl MdrResourceManager {
     })
   }
 
-  /// Returns an `MdrMaterial` specified by `name` from the material library. If no match is found for the
+  /// Returns an [`MdrMaterial`] specified by `name` from the material library. If no match is found for the
   /// key, it returns `MdrResourceError::MaterialNotFound`.
   pub fn retrieve_material(&self, name: &str) -> Result<MdrMaterial, MdrResourceError> {
     if !self.material_library.contains_key(name) {
@@ -383,7 +383,7 @@ impl MdrResourceManager {
   }
 
   /// Removes the material specified by `name` from the material library and drops it, freeing it
-  /// from GPU memory. Doing this will effectively invalidate any existing `MdrMaterial` objects.
+  /// from GPU memory. Doing this will effectively invalidate any existing [`MdrMaterial`] objects.
   pub fn unload_material(&mut self, name: &str) {
     if !self.material_library.contains_key(name) {
       tracing::warn!("Cannot unload material {name} because it is not in the library",);
@@ -465,7 +465,7 @@ impl MdrResourceManager {
     index_buffer
   }
 
-  /// Uploads an input `image::DynamicImage` to the GPU  with settings defined by the `texture_create_info`.
+  /// Uploads an input [`image::DynamicImage`] to the GPU  with settings defined by the `texture_create_info`.
   /// Returns an `MdrGpuTextureHandle` containing the resulting image view and sampler.
   fn upload_image_to_gpu(
     &mut self,
@@ -546,9 +546,9 @@ impl MdrResourceManager {
       .unwrap()
       .execute(self.queue.clone())
       .unwrap();
-    // Store the future
+    // Store the future, optionally chaining it onto the last transfer future, if any
     self.texture_transfer_futures = match self.texture_transfer_futures.take() {
-      Some(cur) => Some(cur.join(future).boxed()),
+      Some(last) => Some(last.join(future).boxed()),
       None => Some(future.boxed()),
     };
 
@@ -558,15 +558,15 @@ impl MdrResourceManager {
     }
   }
 
-  /// Uploads an input `MdrMaterialUniformData` to the GPU .
+  /// Uploads an input [`MdrMeshMaterialData`] to the GPU .
   /// Returns an `MdrGpuMaterialHandle` containing the resulting buffer.
   fn upload_material_to_gpu(
     &self,
-    material_uniforms: MdrMaterialUniformData,
-    diffuse_map: MdrGpuTextureHandle,
-    roughness_map: MdrGpuTextureHandle,
-    normal_map: MdrGpuTextureHandle,
+    material_uniforms: MdrMeshMaterialData,
+    texture_elements: Vec<(Arc<ImageView>, Arc<Sampler>)>,
   ) -> MdrGpuMaterialHandle {
+    tracing::trace!("Uploading material data to GPU: {material_uniforms:?}");
+
     let material_data = [material_uniforms];
     let material_buffer = self
       .material_allocator
@@ -578,30 +578,15 @@ impl MdrResourceManager {
       .copy_from_slice(&material_data);
 
     // Upload material data
-    let descriptor_set = DescriptorSet::new(
+    let descriptor_set = DescriptorSet::new_variable(
       self.descriptor_set_allocator.clone(),
       self.pipelines.mesh.descriptor_set_layout(),
+      texture_elements.len() as u32,
       [
         // Material uniform data
         WriteDescriptorSet::buffer(0, material_buffer),
-        // Diffuse map image sampler
-        WriteDescriptorSet::image_view_sampler(
-          1,
-          diffuse_map.image_view.clone(),
-          diffuse_map.sampler,
-        ),
-        // Roughness map image sampler
-        WriteDescriptorSet::image_view_sampler(
-          2,
-          roughness_map.image_view.clone(),
-          roughness_map.sampler,
-        ),
-        // Normal map image sampler
-        WriteDescriptorSet::image_view_sampler(
-          3,
-          normal_map.image_view.clone(),
-          normal_map.sampler,
-        ),
+        // All image samplers for textures
+        WriteDescriptorSet::image_view_sampler_array(1, 0, texture_elements),
       ],
       [],
     )
@@ -641,12 +626,10 @@ impl MdrResourceManager {
 }
 
 #[derive(Debug)]
-/// Error emitted by `MdrResourceManager`.
+/// Error emitted by [`MdrResourceManager`].
 pub enum MdrResourceError {
   /// Emitted when the resource manager fails to load an .obj file.
   ObjLoadError,
-  /// Emitted when the resource manager fails to load assets with Assimp.
-  AssimpLoadError,
   /// Emitted when the resource manager fails to load an image file.
   ImageLoadError,
 

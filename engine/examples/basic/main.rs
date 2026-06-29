@@ -8,7 +8,7 @@ use mdr_example_utils::{DEBUG_ENABLED, mesh_asset};
 mod materials;
 
 // Consts for this example
-const LIGHT_BRIGHTNESS: f32 = 10.0;
+const LIGHT_BRIGHTNESS: f32 = 30.0;
 const CAMERA_MOV_SPEED: f32 = 0.5;
 const CAMERA_ROT_SPEED: f32 = 0.01;
 
@@ -31,19 +31,19 @@ impl MdrApplication for BasicExampleApp {
     // Create object meshes
     let monkey_mesh = engine
       .manage_resources()
-      .load_mesh(&mesh_asset("suzanne.obj"), "monkey")
+      .load_mesh_obj(&mesh_asset("suzanne.obj"), "monkey")
       .unwrap();
     let sphere_mesh = engine
       .manage_resources()
-      .load_mesh(&mesh_asset("sphere.obj"), "sphere")
+      .load_mesh_obj(&mesh_asset("sphere.obj"), "sphere")
       .unwrap();
     let cube_mesh = engine
       .manage_resources()
-      .load_mesh(&mesh_asset("cube.obj"), "cube")
+      .load_mesh_obj(&mesh_asset("cube.obj"), "cube")
       .unwrap();
     let plane_mesh = engine
       .manage_resources()
-      .load_mesh(&mesh_asset("plane.obj"), "plane")
+      .load_mesh_obj(&mesh_asset("plane.obj"), "plane")
       .unwrap();
 
     // Create object materials

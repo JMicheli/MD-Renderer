@@ -1,28 +1,15 @@
 use mdr_engine::{
   MdrEngine,
-  resources::{MdrMaterial, MdrMaterialCreateInfo, MdrRgb, MdrTexture},
+  resources::{MdrMaterial, MdrMeshMaterialCreateInfo},
 };
 
 pub fn make_material(
   engine: &mut MdrEngine,
   name: &str,
-  diffuse: MdrTexture,
-  roughness: MdrTexture,
-  normal: MdrTexture,
-  specular_color: MdrRgb,
-  shininess: f32,
+  create_info: &MdrMeshMaterialCreateInfo,
 ) -> MdrMaterial {
   engine
     .manage_resources()
-    .create_material(
-      &MdrMaterialCreateInfo {
-        diffuse,
-        roughness,
-        normal,
-        specular_color,
-        shininess,
-      },
-      name,
-    )
+    .create_material(create_info, name)
     .unwrap()
 }

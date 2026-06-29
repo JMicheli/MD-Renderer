@@ -2,6 +2,20 @@
 #include <data_types.glsl>
 #include <consts.glsl>
 
+// Input buffer objects
+// ////////////////////
+
+#include <bind_scene_data.glsl>
+
+// Push constant data containing per-object data.
+// Currently sized at 108 bytes total (push constants guarantee
+// 128 bytes available). 
+layout(push_constant) uniform MdrPushConstants {
+  // The translation/rotation/scale of the current object
+	mat4 transformation_matrix;
+} object;
+
+
 // Inputs/Ouputs
 // /////////////
 layout(location = 0) in vec3 a_position;
@@ -12,26 +26,6 @@ layout(location = 3) in vec3 a_tangent;
 layout(location = 0) out vec3 v_position;
 layout(location = 1) out vec2 v_uv;
 layout(location = 2) out mat3 v_TBN;
-
-// Input buffer objects
-// ////////////////////
-
-// Data representing the scene
-layout(set = 0, binding = 0) buffer MdrSceneData {
-  // The camera being used to render the scene
-  CameraData camera;
-  // Up to MAX_POINT_LIGHTS point light values
-  PointLightData point_lights[MAX_POINT_LIGHTS];
-  // Maximum point_light index with a valid value
-  uint point_light_count;
-} scene_data;
-
-// Push constant data containing an object's world transforms
-layout(push_constant) uniform MdrPushConstants
-{
-  // The translation/rotation/scale of the current object
-	mat4 transformation_matrix;
-} object;
 
 // Shader Entry Point
 // //////////////////
