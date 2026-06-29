@@ -5,10 +5,10 @@
 
 // Configuration
 // /////////////
-#extension GL_EXT_nonuniform_qualifier : enable // TODO - Do we want to keep this?
+#extension GL_EXT_nonuniform_qualifier : enable
 
 #define GAMMA_FACTOR 2.2
-#define AMBIENT_FACTOR 0.05
+#define AMBIENT_FACTOR 0.03
 
 // Input buffer objects
 // ////////////////////
@@ -123,7 +123,7 @@ void main() {
     vec3 L = normalize(light_pos - v_position);                 // Light direction
     float dist_to_light = length(light_pos - v_position);       // Distance for falloff
     float attenuation = 1.0 / (dist_to_light * dist_to_light);  // Inverse square falloff
-    vec3 radiance = light_strength * light_color * attenuation;                  // Attenuated light color
+    vec3 radiance = light_strength * light_color * attenuation; // Attenuated light color
 
     // Calculate half vector (between view and light directions)
     vec3 H = normalize(V + L);
@@ -167,7 +167,7 @@ void main() {
   // ////////////////////
 
   // Add simple ambient lighting (should be replaced with IBL in production)
-  vec3 ambient = vec3(0.03, 0.03, 0.03) * diffuse_color.xyz * ao;
+  vec3 ambient = vec3(AMBIENT_FACTOR, AMBIENT_FACTOR, AMBIENT_FACTOR) * diffuse_color.xyz * ao;
 
   // Combine all lighting contributions
   vec3 color = ambient + Lo + emissive;

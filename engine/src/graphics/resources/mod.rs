@@ -4,7 +4,7 @@ pub mod mesh;
 pub mod texture;
 pub mod vertex;
 
-use image::{DynamicImage, ImageBuffer, ImageReader, Rgb, Rgba};
+use image::{DynamicImage, GenericImageView, ImageBuffer, ImageReader, Rgb, Rgba};
 use rustc_hash::{FxBuildHasher, FxHashMap};
 use std::{collections::HashMap, path::Path, sync::Arc};
 use vulkano::{
@@ -207,11 +207,85 @@ impl MdrResourceManager {
     // Load image data from disk
     let image = match ImageReader::open(texture_create_info.source) {
       Ok(reader) => reader.decode().unwrap(),
-      Err(_) => return Err(MdrResourceError::ImageLoadError),
+      Err(e) => {
+        tracing::error!("Failed to load {:?}: {e}", texture_create_info.source);
+        return Err(MdrResourceError::ImageLoadError);
+      }
     };
 
     // Upload to GPU and catalogue texture in library
     let texture_handle = self.upload_image_to_gpu(&image, texture_create_info);
+    self
+      .texture_library
+      .insert(String::from(name), texture_handle);
+    tracing::debug!("Added {name} to texture library");
+
+    Ok(MdrTexture {
+      name: String::from(name),
+    })
+  }
+
+  /// Loads a metallic and roughness texture and then packs them together so that the green channel
+  /// is roughness and the blue channel is metallicness.
+  pub fn load_metal_and_roughness_texture(
+    &mut self,
+    roughness_source: &Path,
+    metal_source: &Path,
+    color_type: MdrColorType,
+    sampler_mode: MdrSamplerMode,
+    name: &str,
+  ) -> Result<MdrTexture, MdrResourceError> {
+    // Check that the texture name isn't already in use
+    if self.texture_library.contains_key(name) {
+      tracing::error!("Texture library already contains name: {name}");
+      return Err(MdrResourceError::DuplicateTextureName);
+    }
+
+    // Load image data from disk
+    let roughness_image = match ImageReader::open(roughness_source) {
+      Ok(reader) => reader.decode().unwrap(),
+      Err(e) => {
+        tracing::error!("Failed to load {roughness_source:?}: {e}");
+        return Err(MdrResourceError::ImageLoadError);
+      }
+    };
+    let metallic_image = match ImageReader::open(metal_source) {
+      Ok(reader) => reader.decode().unwrap(),
+      Err(e) => {
+        tracing::error!("Failed to load {metal_source:?}: {e}");
+        return Err(MdrResourceError::ImageLoadError);
+      }
+    };
+
+    // Confirm that dimensions match
+    let width = roughness_image.width();
+    let height = roughness_image.height();
+    if (width != metallic_image.width()) || (height != metallic_image.height()) {
+      tracing::error!(
+        "Cannot combine roughness/metallic image if their dimensions are not the same"
+      );
+      return Err(MdrResourceError::ImageLoadError);
+    }
+
+    // Create the composite image
+    let mut buffer = ImageBuffer::new(width, height);
+    for (x, y, pixel) in buffer.enumerate_pixels_mut() {
+      let p1 = roughness_image.get_pixel(x, y);
+      let p2 = metallic_image.get_pixel(x, y);
+
+      *pixel = Rgb([0, p1[0], p2[0]]);
+    }
+    let combined_image = DynamicImage::ImageRgb8(buffer);
+
+    // Upload to GPU and catalogue texture in library
+    let texture_handle = self.upload_image_to_gpu(
+      &combined_image,
+      MdrTextureCreateInfo {
+        source: Path::new(""),
+        color_type,
+        sampler_mode,
+      },
+    );
     self
       .texture_library
       .insert(String::from(name), texture_handle);
