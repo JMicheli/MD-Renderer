@@ -10,5 +10,4 @@
     "prettier.proseWrap": "always",
     "editor.formatOnSave": true,
   },
-
 }

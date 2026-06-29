@@ -72,7 +72,7 @@ void main() {
   // channel and roughness in the green channel.
   float roughness = material.roughness_factor;
   float metallic = material.metallic_factor;
-  idx = material.metallic_roughness_texture_set; 
+  idx = material.metallic_roughness_texture_set;
   if (idx >= 0) {
     roughness *= texture(textures[idx], v_uv).y;
     metallic *= texture(textures[idx], v_uv).z;
@@ -80,21 +80,26 @@ void main() {
 
   // And for ambient occlusion
   float ao = 1.0; // TODO - Is this right?
-  idx = material.occlusion_texture_set; 
+  idx = material.occlusion_texture_set;
   if (idx >= 0) {
     ao *= texture(textures[idx], v_uv).x;
   }
 
   // And for emission
   float emissive = 0.0;
-  idx = material.emissive_texture_set; 
+  idx = material.emissive_texture_set;
   if (idx >= 0) {
     emissive += texture(textures[idx], v_uv).x;
   }
 
   // Similar process for normal map
   vec3 N = normalize(v_TBN[2]);
-  // TODO - Apply normal map here
+  idx = material.normal_texture_set;
+  if (idx >= 0) {
+      // Sample normal map and convert from [0,1] to [-1,1] range
+      vec3 tangent_normal = texture(textures[idx], v_uv).xyz * 2.0 - 1.0;
+      N = normalize(tangent_normal * v_TBN);
+  }
 
   // Calculate view direction (fragment to camera)
   vec3 V = normalize(scene_data.camera.position - v_position);
