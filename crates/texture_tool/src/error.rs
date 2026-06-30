@@ -1,3 +1,4 @@
+/// An error thrown by the texture-tool library.
 #[derive(Debug, thiserror::Error)]
 pub enum TextureToolError {
   #[error("I/O error when loading texture: {0}")]

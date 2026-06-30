@@ -1,16 +1,22 @@
 use std::path::Path;
 
-use image::{DynamicImage, GenericImageView, ImageBuffer, ImageReader, Rgb};
+use image::{DynamicImage, GenericImageView, ImageBuffer, Rgb};
 
-use crate::TextureToolError;
+use crate::{TextureToolError, load_dynamic_image};
 
-pub fn merge_metallic_and_roughness(
-  metal_source: &Path,
-  roughness_source: &Path,
+/// Loads the `metal_source` and `roughness_source` textures and then combines them into a single
+/// [`DynamicImage`] such that the roughness is stored in the green channel and the metalness is
+/// stored in the blue channel. The resulting [`DynamicImage`] is then output.
+///
+/// This corresponds to a convention used in many engines (e.g., Unity) which conserves memory since
+/// roughness and metalness are single-channel values and a 3-channel texture is overkill for them.
+pub fn merge_metallic_and_roughness<P: AsRef<Path>>(
+  metal_source: P,
+  roughness_source: P,
 ) -> Result<DynamicImage, TextureToolError> {
   // Load image data from disk
-  let roughness_image = ImageReader::open(roughness_source)?.decode()?;
-  let metallic_image = ImageReader::open(metal_source)?.decode()?;
+  let roughness_image = load_dynamic_image(roughness_source)?;
+  let metallic_image = load_dynamic_image(metal_source)?;
 
   // Confirm that dimensions match
   let width = roughness_image.width();

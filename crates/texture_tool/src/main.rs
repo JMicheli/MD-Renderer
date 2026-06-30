@@ -1,3 +1,9 @@
+//! This module defines a CLI for interacting with the texture-tool during
+//! development as needed. Currently, it exposes the following functionality:
+//!
+//! * Generate combined metal-roughness maps from separate maps.
+//! * Flip the green (Y) channel of normal maps to convert GL to DX-style maps.
+
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
