@@ -4,7 +4,7 @@ pub mod mesh;
 pub mod texture;
 pub mod vertex;
 
-use image::{DynamicImage, GenericImageView, ImageBuffer, ImageReader, Rgb, Rgba};
+use image::{DynamicImage, ImageBuffer, ImageReader, Rgb, Rgba};
 use rustc_hash::{FxBuildHasher, FxHashMap};
 use std::{collections::HashMap, path::Path, sync::Arc};
 use vulkano::{
@@ -241,41 +241,15 @@ impl MdrResourceManager {
       return Err(MdrResourceError::DuplicateTextureName);
     }
 
-    // Load image data from disk
-    let roughness_image = match ImageReader::open(roughness_source) {
-      Ok(reader) => reader.decode().unwrap(),
-      Err(e) => {
-        tracing::error!("Failed to load {roughness_source:?}: {e}");
-        return Err(MdrResourceError::ImageLoadError);
-      }
-    };
-    let metallic_image = match ImageReader::open(metal_source) {
-      Ok(reader) => reader.decode().unwrap(),
-      Err(e) => {
-        tracing::error!("Failed to load {metal_source:?}: {e}");
-        return Err(MdrResourceError::ImageLoadError);
-      }
-    };
-
-    // Confirm that dimensions match
-    let width = roughness_image.width();
-    let height = roughness_image.height();
-    if (width != metallic_image.width()) || (height != metallic_image.height()) {
-      tracing::error!(
-        "Cannot combine roughness/metallic image if their dimensions are not the same"
-      );
-      return Err(MdrResourceError::ImageLoadError);
-    }
-
-    // Create the composite image
-    let mut buffer = ImageBuffer::new(width, height);
-    for (x, y, pixel) in buffer.enumerate_pixels_mut() {
-      let p1 = roughness_image.get_pixel(x, y);
-      let p2 = metallic_image.get_pixel(x, y);
-
-      *pixel = Rgb([0, p1[0], p2[0]]);
-    }
-    let combined_image = DynamicImage::ImageRgb8(buffer);
+    let combined_image =
+      match mdr_texture_tool::merge_metallic_and_roughness(metal_source, roughness_source) {
+        Ok(res) => res,
+        Err(e) => panic!(
+          "Failed to combine metallic ({}) and roughness ({}) maps: {e}",
+          metal_source.display(),
+          roughness_source.display()
+        ),
+      };
 
     // Upload to GPU and catalogue texture in library
     let texture_handle = self.upload_image_to_gpu(

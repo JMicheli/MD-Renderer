@@ -1,0 +1,10 @@
+[package]
+name = "mdr_texture_tool"
+version = { workspace = true }
+rust-version = { workspace = true }
+edition = { workspace = true }
+
+[dependencies]
+image = { workspace = true }
+thiserror = { workspace = true }
+clap = { version = "4.6.1", features = ["derive"] }

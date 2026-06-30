@@ -16,4 +16,6 @@ opt-level = 3
 strip = true
 
 [workspace.dependencies]
+image = "0.25.10"
 tracing = "0.1.44"
+thiserror = "2.0.18"
