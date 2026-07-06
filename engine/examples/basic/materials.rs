@@ -7,7 +7,7 @@ use mdr_engine::{
 };
 
 use mdr_example_utils::{make_material, texture_asset};
-use mdr_texture_tool::load_dynamic_image;
+use mdr_texture_tool::{load_dynamic_image, merge_metallic_and_roughness};
 
 pub fn metal_plates(name: &str, engine: &mut MdrEngine) -> MdrMaterial {
   let textures = load_textures(engine, "metal_plates");
@@ -128,30 +128,24 @@ fn load_textures(engine: &mut MdrEngine, name_preamble: &str) -> Textures {
   let name = format!("{name_preamble}_metallic_roughness");
   let metallic_path = texture_asset(&format!("{name_preamble}/metalness.png"));
   let roughness_path = texture_asset(&format!("{name_preamble}/roughness.png"));
-  let metallic_roughness = if metallic_path.exists() {
-    engine
-      .manage_resources()
-      .load_metal_and_roughness_texture(
-        &roughness_path,
-        &metallic_path,
-        MdrColorType::NonColorData,
-        MdrSamplerMode::Repeat,
-        &name,
-      )
-      .unwrap()
+
+  let image = if metallic_path.exists() {
+    merge_metallic_and_roughness(metallic_path, roughness_path).unwrap()
   } else {
-    engine
-      .manage_resources()
-      .load_texture(
-        &MdrTextureCreateInfo {
-          image: load_dynamic_image(&roughness_path).unwrap(),
-          color_type: MdrColorType::NonColorData,
-          sampler_mode: MdrSamplerMode::Repeat,
-        },
-        &name,
-      )
-      .unwrap()
+    load_dynamic_image(&roughness_path).unwrap()
   };
+
+  let metallic_roughness = engine
+    .manage_resources()
+    .load_texture(
+      &MdrTextureCreateInfo {
+        image,
+        color_type: MdrColorType::NonColorData,
+        sampler_mode: MdrSamplerMode::Repeat,
+      },
+      &name,
+    )
+    .unwrap();
 
   Textures {
     base_color,

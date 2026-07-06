@@ -224,48 +224,6 @@ impl MdrResourceManager {
     })
   }
 
-  /// Loads a metallic and roughness texture and then packs them together so that the green channel
-  /// is roughness and the blue channel is metallicness.
-  pub fn load_metal_and_roughness_texture(
-    &mut self,
-    roughness_source: &Path,
-    metal_source: &Path,
-    color_type: MdrColorType,
-    sampler_mode: MdrSamplerMode,
-    name: &str,
-  ) -> Result<MdrTexture, MdrResourceError> {
-    // Check that the texture name isn't already in use
-    if self.texture_library.contains_key(name) {
-      tracing::error!("Texture library already contains name: {name}");
-      return Err(MdrResourceError::DuplicateTextureName);
-    }
-
-    let combined_image =
-      match mdr_texture_tool::merge_metallic_and_roughness(metal_source, roughness_source) {
-        Ok(res) => res,
-        Err(e) => panic!(
-          "Failed to combine metallic ({}) and roughness ({}) maps: {e}",
-          metal_source.display(),
-          roughness_source.display()
-        ),
-      };
-
-    // Upload to GPU and catalogue texture in library
-    let texture_handle = self.upload_image_to_gpu(&MdrTextureCreateInfo {
-      image: combined_image,
-      color_type,
-      sampler_mode,
-    });
-    self
-      .texture_library
-      .insert(String::from(name), texture_handle);
-    tracing::debug!("Added {name} to texture library");
-
-    Ok(MdrTexture {
-      name: String::from(name),
-    })
-  }
-
   /// Creates a single-pixel texture with the input `MdrColor` and stores it in the texture library
   /// for later use.
   pub fn create_solid_texture(
