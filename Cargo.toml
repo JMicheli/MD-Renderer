@@ -19,3 +19,4 @@ strip = true
 image = "0.25.10"
 tracing = "0.1.44"
 thiserror = "2.0.18"
+gltf = "1.4.1"

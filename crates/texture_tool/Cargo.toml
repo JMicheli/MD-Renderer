@@ -7,4 +7,5 @@ edition = { workspace = true }
 [dependencies]
 image = { workspace = true }
 thiserror = { workspace = true }
+gltf = { workspace = true }
 clap = { version = "4.6.1", features = ["derive"] }

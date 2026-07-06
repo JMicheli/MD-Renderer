@@ -165,12 +165,10 @@ impl MdrRgba {
 }
 
 /// How the GPU will interpret a color value
+#[derive(Debug, Clone, Copy)]
 pub enum MdrColorType {
   /// A Standardized RGBA color, with pre-gamma RGB values and an alpha channel.
   SRGBA,
-
-  /// A Standardized RGB color, with pre-gamma RGB values.
-  SRGB,
 
   /// Raw RGBA value data not intended to be directly rendered to a viewer.
   NonColorData,
@@ -180,7 +178,6 @@ impl MdrColorType {
   pub const fn component_count(&self) -> u32 {
     match self {
       Self::SRGBA | Self::NonColorData => 4,
-      Self::SRGB => 3,
     }
   }
 }
@@ -188,8 +185,7 @@ impl MdrColorType {
 impl From<MdrColor> for MdrColorType {
   fn from(color: MdrColor) -> Self {
     match color {
-      MdrColor::RGB(_) => Self::SRGB,
-      MdrColor::RGBA(_) => Self::SRGBA,
+      MdrColor::RGB(_) | MdrColor::RGBA(_) => Self::SRGBA,
     }
   }
 }
@@ -198,7 +194,6 @@ impl From<MdrColorType> for Format {
   fn from(value: MdrColorType) -> Self {
     match value {
       MdrColorType::SRGBA => Self::R8G8B8A8_SRGB,
-      MdrColorType::SRGB => Self::R8G8B8_SRGB,
       MdrColorType::NonColorData => Self::R8G8B8A8_UNORM,
     }
   }

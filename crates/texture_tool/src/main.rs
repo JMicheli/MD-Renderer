@@ -4,11 +4,11 @@
 //! * Generate combined metal-roughness maps from separate maps.
 //! * Flip the green (Y) channel of normal maps to convert GL to DX-style maps.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use clap::{Parser, Subcommand};
 
-use mdr_texture_tool::{invert_normal_map, merge_metallic_and_roughness};
+use mdr_texture_tool::{invert_normal_map, load_dynamic_image, merge_metallic_and_roughness};
 
 #[derive(Parser)]
 #[command(name = "texture-tool")]
@@ -44,6 +44,13 @@ enum Commands {
     /// Output path for the inverted map
     #[arg(long)]
     output: PathBuf,
+  },
+
+  /// Get information about a texture using the image crate
+  ImageInfo {
+    /// Path to the texture
+    #[arg(long)]
+    input: PathBuf,
   },
 }
 
@@ -92,5 +99,29 @@ fn main() {
         Err(e) => eprintln!("Failed to save inverted normal map: {e}"),
       }
     }
+
+    // Image Info
+    // //////////
+    Commands::ImageInfo { input } => {
+      print_image_info(input);
+    }
   }
+}
+
+/// Prints information for the `input` image using the [`image`] crate.
+fn print_image_info(input: &Path) {
+  println!("Image info for {input:?}");
+
+  let image = match load_dynamic_image(input) {
+    Ok(image) => image,
+    Err(e) => {
+      eprintln!("Failed to load image: {e}");
+      return;
+    }
+  };
+
+  let width = image.width();
+  let height = image.height();
+  println!("width: {width} | height: {height}");
+  println!("{:?}", image.color());
 }

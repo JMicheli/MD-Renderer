@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::{path::Path, time::Instant};
 
 use winit::{
   application::ApplicationHandler, event::WindowEvent, event_loop::ActiveEventLoop,
@@ -10,6 +10,7 @@ use crate::{
   application::MdrRunOptions,
   graphics::{MdrGraphicsContext, MdrResourceManager},
   input::MdrInputContext,
+  load_gltf,
   scene::MdrScene,
 };
 
@@ -83,6 +84,10 @@ impl MdrEngine {
     self.last_update = current_instant;
     self.graphics_context.window.get_window().request_redraw();
     self.input_context.cleanup_after_update();
+  }
+
+  pub fn load_scene_from_gltf<P: AsRef<Path>>(&mut self, gltf_path: P) {
+    self.scene = load_gltf::from_path(gltf_path, self.manage_resources()).unwrap();
   }
 }
 

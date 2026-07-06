@@ -18,6 +18,43 @@ impl MdrTransform {
     }
   }
 
+  pub fn from_matrix(matrix: [[f32; 4]; 4]) -> Self {
+    let m = Matrix4::from_fn(|r, c| matrix[r][c]);
+
+    // 4th column contains trainslation
+    let translation = MdrTranslation::new(m[(0, 3)], m[(1, 3)], m[(2, 3)]);
+
+    // Get scale components
+    let scale_x = Vector3::new(m[(0, 0)], m[(1, 0)], m[(2, 0)]).norm();
+    let scale_y = Vector3::new(m[(0, 1)], m[(1, 1)], m[(2, 1)]).norm();
+    let scale_z = Vector3::new(m[(0, 2)], m[(1, 2)], m[(2, 2)]).norm();
+
+    let mut scale = MdrScale::identity();
+    scale.set(scale_x, scale_y, scale_z);
+
+    // Get rotation from upper-left 3x3 portion
+    let m3x3 = nalgebra::Matrix3::new(
+      m[(0, 0)],
+      m[(0, 1)],
+      m[(0, 2)],
+      m[(1, 0)],
+      m[(1, 1)],
+      m[(1, 2)],
+      m[(2, 0)],
+      m[(2, 1)],
+      m[(2, 2)],
+    );
+    let rot3 = nalgebra::Rotation3::from_matrix(&m3x3);
+    let quat = UnitQuaternion::from(rot3);
+    let rotation = MdrRotation(quat);
+
+    Self {
+      translation,
+      rotation,
+      scale,
+    }
+  }
+
   pub fn matrix(&self) -> Matrix4<f32> {
     let translation = self.translation.matrix();
     let rotation = self.rotation.matrix();

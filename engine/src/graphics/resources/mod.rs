@@ -4,7 +4,7 @@ pub mod mesh;
 pub mod texture;
 pub mod vertex;
 
-use image::{DynamicImage, ImageBuffer, ImageReader, Rgb, Rgba};
+use image::{DynamicImage, ImageBuffer, Rgb, Rgba};
 use rustc_hash::{FxBuildHasher, FxHashMap};
 use std::{collections::HashMap, path::Path, sync::Arc};
 use vulkano::{
@@ -140,6 +140,20 @@ impl MdrResourceManager {
   // Mesh handling
   // /////////////
 
+  pub fn load_mesh_data(
+    &mut self,
+    name: &str,
+    mesh_data: &MdrMeshData,
+  ) -> Result<MdrMesh, MdrResourceError> {
+    let mesh_handle = self.upload_mesh_to_gpu(mesh_data);
+    self.mesh_library.insert(String::from(name), mesh_handle);
+    tracing::debug!("Added {name} to mesh library");
+
+    Ok(MdrMesh {
+      name: String::from(name),
+    })
+  }
+
   /// Load a mesh from an .obj file into the mesh library with a given name.
   /// `path` specifies a path to the .obj file.
   /// `name` is the name given to the mesh in the mesh library.
@@ -155,13 +169,7 @@ impl MdrResourceManager {
     };
     tracing::debug!("Loaded obj file: {path:?}");
 
-    let mesh_handle = self.upload_mesh_to_gpu(&mesh_data);
-    self.mesh_library.insert(String::from(name), mesh_handle);
-    tracing::debug!("Added {name} to mesh library");
-
-    Ok(MdrMesh {
-      name: String::from(name),
-    })
+    self.load_mesh_data(name, &mesh_data)
   }
 
   /// Returns an `MdrMesh` specified by `name` from the mesh library. If no match is found for the
@@ -191,11 +199,11 @@ impl MdrResourceManager {
   // Texture handling
   // ////////////////
 
-  /// Loads the texture specified in the input `texture_create_info` and stores it
+  /// Loads the texture specified in the input `create_info` and stores it
   /// in the texture library for later use.
   pub fn load_texture(
     &mut self,
-    texture_create_info: MdrTextureCreateInfo,
+    create_info: &MdrTextureCreateInfo,
     name: &str,
   ) -> Result<MdrTexture, MdrResourceError> {
     // Check that the texture name isn't already in use
@@ -204,17 +212,8 @@ impl MdrResourceManager {
       return Err(MdrResourceError::DuplicateTextureName);
     }
 
-    // Load image data from disk
-    let image = match ImageReader::open(texture_create_info.source) {
-      Ok(reader) => reader.decode().unwrap(),
-      Err(e) => {
-        tracing::error!("Failed to load {:?}: {e}", texture_create_info.source);
-        return Err(MdrResourceError::ImageLoadError);
-      }
-    };
-
     // Upload to GPU and catalogue texture in library
-    let texture_handle = self.upload_image_to_gpu(&image, texture_create_info);
+    let texture_handle = self.upload_image_to_gpu(create_info);
     self
       .texture_library
       .insert(String::from(name), texture_handle);
@@ -252,14 +251,11 @@ impl MdrResourceManager {
       };
 
     // Upload to GPU and catalogue texture in library
-    let texture_handle = self.upload_image_to_gpu(
-      &combined_image,
-      MdrTextureCreateInfo {
-        source: Path::new(""),
-        color_type,
-        sampler_mode,
-      },
-    );
+    let texture_handle = self.upload_image_to_gpu(&MdrTextureCreateInfo {
+      image: combined_image,
+      color_type,
+      sampler_mode,
+    });
     self
       .texture_library
       .insert(String::from(name), texture_handle);
@@ -306,14 +302,11 @@ impl MdrResourceManager {
     };
 
     // Upload to GPU and catalogue texture in library
-    let texture_handle = self.upload_image_to_gpu(
-      &image,
-      MdrTextureCreateInfo {
-        source: Path::new(""),
-        color_type: MdrColorType::from(color),
-        sampler_mode: MdrSamplerMode::ClampToEdge,
-      },
-    );
+    let texture_handle = self.upload_image_to_gpu(&MdrTextureCreateInfo {
+      image,
+      color_type: MdrColorType::from(color),
+      sampler_mode: MdrSamplerMode::ClampToEdge,
+    });
     self
       .texture_library
       .insert(String::from(name), texture_handle);
@@ -513,13 +506,9 @@ impl MdrResourceManager {
     index_buffer
   }
 
-  /// Uploads an input [`image::DynamicImage`] to the GPU  with settings defined by the `texture_create_info`.
+  /// Uploads an input [`image::DynamicImage`] to the GPU  with settings defined by the `create_info`.
   /// Returns an `MdrGpuTextureHandle` containing the resulting image view and sampler.
-  fn upload_image_to_gpu(
-    &mut self,
-    image: &DynamicImage,
-    create_info: MdrTextureCreateInfo,
-  ) -> MdrGpuTextureHandle {
+  fn upload_image_to_gpu(&mut self, create_info: &MdrTextureCreateInfo) -> MdrGpuTextureHandle {
     // Get command buffer for upload
     // TODO - Is there another way to do this? Seems unnecessarily synchronous.
     let mut command_buffer_builder = AutoCommandBufferBuilder::primary(
@@ -529,7 +518,7 @@ impl MdrResourceManager {
     )
     .unwrap();
 
-    let extent = [image.width(), image.height(), 1];
+    let extent = [create_info.image.width(), create_info.image.height(), 1];
     let upload_buffer = Buffer::new_slice(
       self.memory_allocator.clone(),
       BufferCreateInfo {
@@ -546,32 +535,23 @@ impl MdrResourceManager {
 
     // Upload image to buffer
     let mut write_guard = upload_buffer.write().unwrap();
-    match create_info.color_type {
-      MdrColorType::SRGBA | MdrColorType::NonColorData => {
-        // SRGBA images are in standard (gamma-corrected) color space.
-        //
-        // NonColorData images are in linear color space, and their values are read as data, not rgb.
-        // They are used for images that inform shading algorithms (normal maps, roughness maps, etc.)
-        // TODO: Currently we're somewhat wasteful of memory because we use RGBA even when there isn't
-        // a meaningful alpha channel.
-        write_guard.copy_from_slice(&image.to_rgba8());
-      }
-      // SRGB images are in gamma-corrected color space, too, but with just the R, G, and B channels.
-      MdrColorType::SRGB => write_guard.copy_from_slice(&image.to_rgb8()),
-    }
+    write_guard.copy_from_slice(&create_info.image.to_rgba8());
     drop(write_guard);
+
+    let img_create_info = ImageCreateInfo {
+      image_type: ImageType::Dim2d,
+      format: create_info.color_type.into(),
+      extent,
+      array_layers: 1,
+      mip_levels: 1,
+      usage: ImageUsage::TRANSFER_DST | ImageUsage::SAMPLED,
+      ..Default::default()
+    };
+    tracing::trace!("Using img_create_info: {img_create_info:?}");
 
     let image = Image::new(
       self.memory_allocator.clone(),
-      ImageCreateInfo {
-        image_type: ImageType::Dim2d,
-        format: create_info.color_type.into(),
-        extent,
-        array_layers: 1,
-        mip_levels: 1,
-        usage: ImageUsage::TRANSFER_DST | ImageUsage::SAMPLED,
-        ..Default::default()
-      },
+      img_create_info,
       AllocationCreateInfo::default(),
     )
     .unwrap();
@@ -673,32 +653,26 @@ impl MdrResourceManager {
   }
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 /// Error emitted by [`MdrResourceManager`].
 pub enum MdrResourceError {
-  /// Emitted when the resource manager fails to load an .obj file.
+  #[error("Resource manager failed to load .obj file")]
   ObjLoadError,
-  /// Emitted when the resource manager fails to load an image file.
+  #[error("Resource manager failed to load an image file")]
   ImageLoadError,
 
-  /// Emitted when the resource manager cannot find a mesh with a given name in its
-  /// mesh library.
+  #[error("Mesh not found in library")]
   MeshNotFound,
-  /// Emitted when the resource manager attempts to add a mesh with a name that is
-  /// already present in the mesh library.
+  #[error("Mesh already present in library")]
   DuplicateMeshName,
 
-  /// Emitted when the resource manager cannot find a material with a given name in its
-  /// material library.
+  #[error("Material not found in library")]
   MaterialNotFound,
-  /// Emitted when the resource manager attempts to add a material with a name that is
-  /// already present in the material library.
+  #[error("Material already present in library")]
   DuplicateMaterialName,
 
-  /// Emitted when the resource manager cannot find a texture with a given name in its
-  /// texture library.
+  #[error("Texture not found in library")]
   TextureNotFound,
-  /// Emitted when the resource manager attempts to add a texture with a name that is
-  /// already present in the texture library.
+  #[error("Texture already present in library")]
   DuplicateTextureName,
 }

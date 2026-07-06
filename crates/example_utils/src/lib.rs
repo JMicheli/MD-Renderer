@@ -45,10 +45,18 @@ pub fn mesh_asset(asset_path: &str) -> PathBuf {
   Path::new(ASSET_PREFIX).join("meshes").join(asset_path)
 }
 
-/// A helper function for linking mesh assets in both debug and release versions
+/// A helper function for linking texture assets in both debug and release versions
 /// of the example.
 ///
 /// Gets assets from the textures subdirectory.
 pub fn texture_asset(asset_path: &str) -> PathBuf {
   Path::new(ASSET_PREFIX).join("textures").join(asset_path)
+}
+
+/// A helper function for linking scene assets in both debug and release versions
+/// of the example.
+///
+/// Gets assets from the textures subdirectory.
+pub fn scene_asset(asset_path: &str) -> PathBuf {
+  Path::new(ASSET_PREFIX).join("scenes").join(asset_path)
 }

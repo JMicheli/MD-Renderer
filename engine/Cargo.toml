@@ -7,7 +7,9 @@ edition = { workspace = true }
 [dependencies]
 mdr_texture_tool = { path = "../crates/texture_tool" }
 tracing = { workspace = true }
+thiserror = { workspace = true }
 image = { workspace = true }
+gltf = { workspace = true }
 rustc-hash = "2.1.2"
 nalgebra = "0.35.0"
 tobj = "4.0.3"

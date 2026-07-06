@@ -7,6 +7,7 @@ use mdr_engine::{
 };
 
 use mdr_example_utils::{make_material, texture_asset};
+use mdr_texture_tool::load_dynamic_image;
 
 pub fn metal_plates(name: &str, engine: &mut MdrEngine) -> MdrMaterial {
   let textures = load_textures(engine, "metal_plates");
@@ -81,33 +82,39 @@ struct Textures {
 }
 
 fn load_textures(engine: &mut MdrEngine, name_preamble: &str) -> Textures {
+  let image =
+    load_dynamic_image(texture_asset(&format!("{name_preamble}/base_color.png"))).unwrap();
   let base_color = engine
     .manage_resources()
     .load_texture(
-      MdrTextureCreateInfo {
-        source: &texture_asset(&format!("{name_preamble}/base_color.png")),
+      &MdrTextureCreateInfo {
+        image,
         color_type: MdrColorType::SRGBA,
         sampler_mode: MdrSamplerMode::Repeat,
       },
       &format!("{name_preamble}_base_color"),
     )
     .unwrap();
+
+  let image = load_dynamic_image(texture_asset(&format!("{name_preamble}/normal.png"))).unwrap();
   let normal = engine
     .manage_resources()
     .load_texture(
-      MdrTextureCreateInfo {
-        source: &texture_asset(&format!("{name_preamble}/normal.png")),
+      &MdrTextureCreateInfo {
+        image,
         color_type: MdrColorType::NonColorData,
         sampler_mode: MdrSamplerMode::Repeat,
       },
       &format!("{name_preamble}_normal"),
     )
     .unwrap();
+
+  let image = load_dynamic_image(texture_asset(&format!("{name_preamble}/occlusion.png"))).unwrap();
   let occlusion = engine
     .manage_resources()
     .load_texture(
-      MdrTextureCreateInfo {
-        source: &texture_asset(&format!("{name_preamble}/occlusion.png")),
+      &MdrTextureCreateInfo {
+        image,
         color_type: MdrColorType::NonColorData,
         sampler_mode: MdrSamplerMode::Repeat,
       },
@@ -136,8 +143,8 @@ fn load_textures(engine: &mut MdrEngine, name_preamble: &str) -> Textures {
     engine
       .manage_resources()
       .load_texture(
-        MdrTextureCreateInfo {
-          source: &roughness_path,
+        &MdrTextureCreateInfo {
+          image: load_dynamic_image(&roughness_path).unwrap(),
           color_type: MdrColorType::NonColorData,
           sampler_mode: MdrSamplerMode::Repeat,
         },

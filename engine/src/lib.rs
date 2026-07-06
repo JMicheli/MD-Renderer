@@ -15,6 +15,7 @@ mod config;
 mod engine;
 mod graphics;
 mod input;
+mod load_gltf;
 pub mod scene;
 
 pub use application::{MdrApplication, MdrRunOptions, run_application};

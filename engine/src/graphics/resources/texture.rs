@@ -1,16 +1,18 @@
-use std::{path::Path, sync::Arc};
+use std::sync::Arc;
 
+use image::DynamicImage;
 use vulkano::image::{sampler::Sampler, view::ImageView};
 
 use super::MdrColorType;
 
-#[derive(Debug)]
+// TODO - Should switch to using indices or something instead of strings
+#[derive(Debug, Clone)]
 pub struct MdrTexture {
   pub name: String,
 }
 
-pub struct MdrTextureCreateInfo<'a> {
-  pub source: &'a Path,
+pub struct MdrTextureCreateInfo {
+  pub image: DynamicImage,
   pub color_type: MdrColorType,
   pub sampler_mode: MdrSamplerMode,
 }
@@ -22,7 +24,7 @@ pub struct MdrGpuTextureHandle {
 }
 
 /// Refers to various texture sampling options supported by the engine.
-#[derive(Eq, Hash, PartialEq)]
+#[derive(Debug, Eq, Hash, PartialEq, Clone, Copy)]
 pub enum MdrSamplerMode {
   /// The texture will repeat when u, v, w > 1.0
   Repeat,

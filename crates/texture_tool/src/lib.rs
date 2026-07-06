@@ -3,6 +3,7 @@
 //! be used via the CLI defined in the binary for this crate.
 
 mod error;
+pub mod gltf_utils;
 mod metallic_roughness;
 mod normal;
 
