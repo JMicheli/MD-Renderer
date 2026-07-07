@@ -14,9 +14,10 @@ use vulkano::{
   },
   command_buffer::{
     AutoCommandBufferBuilder, CommandBufferUsage, CopyBufferToImageInfo,
-    PrimaryCommandBufferAbstract, allocator::StandardCommandBufferAllocator,
+    PrimaryCommandBufferAbstract,
+    allocator::{StandardCommandBufferAllocator, StandardCommandBufferAllocatorCreateInfo},
   },
-  descriptor_set::{DescriptorSet, WriteDescriptorSet, allocator::DescriptorSetAllocator},
+  descriptor_set::{DescriptorSet, WriteDescriptorSet, allocator::StandardDescriptorSetAllocator},
   device::{Device, Queue},
   image::{
     Image, ImageCreateInfo, ImageType, ImageUsage,
@@ -50,10 +51,16 @@ use self::{
 /// Objects in the scene only store these keys rather than maintaining references to the buffers
 /// in which their data is stored.
 pub struct MdrResourceManager {
+  /// An allocator for Vulkan memory.
+  pub(crate) memory_allocator: Arc<GenericMemoryAllocator<FreeListAllocator>>,
+  /// An allocator for data uploaded to the GPU each frame.
+  pub(crate) buffer_allocator: SubbufferAllocator,
+  /// An allocator for Vulkan command buffers.
+  pub(crate) command_buffer_allocator: Arc<StandardCommandBufferAllocator>,
+  /// An allocator for Vulkan descriptor sets.
+  pub(crate) descriptor_set_allocator: Arc<StandardDescriptorSetAllocator>,
+
   logical_device: Arc<Device>,
-  memory_allocator: Arc<GenericMemoryAllocator<FreeListAllocator>>,
-  command_buffer_allocator: Arc<StandardCommandBufferAllocator>,
-  descriptor_set_allocator: Arc<dyn DescriptorSetAllocator>,
   pipelines: MdrEnginePipelines,
   queue: Arc<Queue>,
 
@@ -73,11 +80,30 @@ impl MdrResourceManager {
   pub fn new(
     logical_device: Arc<Device>,
     memory_allocator: Arc<GenericMemoryAllocator<FreeListAllocator>>,
-    command_buffer_allocator: Arc<StandardCommandBufferAllocator>,
-    descriptor_set_allocator: Arc<dyn DescriptorSetAllocator>,
     pipelines: MdrEnginePipelines,
     queue: Arc<Queue>,
   ) -> Self {
+    let buffer_allocator = SubbufferAllocator::new(
+      memory_allocator.clone(),
+      SubbufferAllocatorCreateInfo {
+        buffer_usage: BufferUsage::STORAGE_BUFFER,
+        memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
+          | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
+        ..Default::default()
+      },
+    );
+    let command_buffer_allocator = Arc::new(StandardCommandBufferAllocator::new(
+      logical_device.clone(),
+      StandardCommandBufferAllocatorCreateInfo {
+        primary_buffer_count: 1,
+        ..Default::default()
+      },
+    ));
+    let descriptor_set_allocator = Arc::new(StandardDescriptorSetAllocator::new(
+      logical_device.clone(),
+      Default::default(),
+    ));
+
     // Mesh memory handler initialization
     let vertex_allocator = SubbufferAllocator::new(
       memory_allocator.clone(),
@@ -117,11 +143,13 @@ impl MdrResourceManager {
 
     Self {
       logical_device,
-      memory_allocator,
-      command_buffer_allocator,
-      descriptor_set_allocator,
       pipelines,
       queue,
+
+      memory_allocator,
+      buffer_allocator,
+      command_buffer_allocator,
+      descriptor_set_allocator,
 
       vertex_allocator,
       index_allocator,

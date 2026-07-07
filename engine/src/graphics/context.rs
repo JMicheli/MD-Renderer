@@ -5,22 +5,16 @@ use winit::event_loop::ActiveEventLoop;
 
 use vulkano::{
   Validated, VulkanError, VulkanLibrary,
-  buffer::{
-    BufferUsage, Subbuffer,
-    allocator::{SubbufferAllocator, SubbufferAllocatorCreateInfo},
-  },
+  buffer::Subbuffer,
   command_buffer::{
     AutoCommandBufferBuilder, CommandBufferUsage, PrimaryAutoCommandBuffer, RenderPassBeginInfo,
     SubpassBeginInfo, SubpassContents, SubpassEndInfo,
-    allocator::{StandardCommandBufferAllocator, StandardCommandBufferAllocatorCreateInfo},
   },
-  descriptor_set::{DescriptorSet, WriteDescriptorSet, allocator::StandardDescriptorSetAllocator},
+  descriptor_set::{DescriptorSet, WriteDescriptorSet},
   device::{Device, DeviceExtensions, DeviceFeatures, Queue},
   format::ClearValue,
   image::Image,
-  memory::allocator::{
-    FreeListAllocator, GenericMemoryAllocator, MemoryTypeFilter, StandardMemoryAllocator,
-  },
+  memory::allocator::StandardMemoryAllocator,
   padded::Padded,
   pipeline::{Pipeline, PipelineBindPoint, graphics::viewport::Viewport},
   render_pass::Framebuffer,
@@ -48,10 +42,10 @@ use super::{
   shaders::mesh_vertex_shader::{CameraData, PointLightData},
 };
 
-/// A Vulkan graphics context, contains Vulkano members.
+/// A Vulkan graphics context, contains [`vulkano`] members.
 pub struct MdrGraphicsContext {
   /// The window that allows a user to interact with the application and provides a surface
-  /// for displaying render outputs.
+  /// for displaying rendered frames.
   pub(crate) window: Arc<MdrWindow>,
 
   /// The Vulkan device responsible for rendering operations.
@@ -75,14 +69,6 @@ pub struct MdrGraphicsContext {
   /// Owns and organizes resources for use by applications using the engine. Stores meshes,
   /// textures, and materials.
   pub(crate) resource_manager: MdrResourceManager,
-  /// An allocator for Vulkan memory.
-  memory_allocator: Arc<GenericMemoryAllocator<FreeListAllocator>>,
-  /// An allocator for data uploaded to the GPU each frame.
-  buffer_allocator: SubbufferAllocator,
-  /// An allocator for Vulkan command buffers.
-  command_buffer_allocator: Arc<StandardCommandBufferAllocator>,
-  /// An allocator for Vulkan descriptor sets.
-  descriptor_set_allocator: Arc<StandardDescriptorSetAllocator>,
 
   /// Tracks the state of the context across invocations of [`Self::draw`].
   state: ContextState,
@@ -149,29 +135,6 @@ impl MdrGraphicsContext {
     );
     tracing::debug!("Created logical device");
 
-    // Create allocators
-    let memory_allocator = Arc::new(StandardMemoryAllocator::new_default(logical_device.clone()));
-    let buffer_allocator = SubbufferAllocator::new(
-      memory_allocator.clone(),
-      SubbufferAllocatorCreateInfo {
-        buffer_usage: BufferUsage::STORAGE_BUFFER,
-        memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
-          | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
-        ..Default::default()
-      },
-    );
-    let command_buffer_allocator = Arc::new(StandardCommandBufferAllocator::new(
-      logical_device.clone(),
-      StandardCommandBufferAllocatorCreateInfo {
-        primary_buffer_count: 1,
-        ..Default::default()
-      },
-    ));
-    let descriptor_set_allocator = Arc::new(StandardDescriptorSetAllocator::new(
-      logical_device.clone(),
-      Default::default(),
-    ));
-
     // Create swapchain
     let (swapchain, swapchain_images) =
       create_swapchain(&window, &logical_device, &physical_device);
@@ -189,6 +152,9 @@ impl MdrGraphicsContext {
     let pipelines = MdrEnginePipelines::new(&logical_device, &render_pass, &viewport);
     tracing::debug!("Created pipelines");
 
+    // Create memory allocator
+    let memory_allocator = Arc::new(StandardMemoryAllocator::new_default(logical_device.clone()));
+
     // Create framebuffers
     let framebuffers = create_framebuffers(&memory_allocator, &swapchain_images, &render_pass);
     tracing::debug!("Created framebuffers");
@@ -199,15 +165,14 @@ impl MdrGraphicsContext {
     // Create resource manager
     let resource_manager = MdrResourceManager::new(
       logical_device.clone(),
-      memory_allocator.clone(),
-      command_buffer_allocator.clone(),
-      descriptor_set_allocator.clone(),
+      memory_allocator,
       pipelines.clone(),
       queue.clone(),
     );
 
     Self {
       window,
+      resource_manager,
 
       logical_device,
       queue,
@@ -217,12 +182,6 @@ impl MdrGraphicsContext {
       viewport,
       pipelines,
       framebuffers,
-
-      resource_manager,
-      memory_allocator,
-      buffer_allocator,
-      command_buffer_allocator,
-      descriptor_set_allocator,
 
       state: ContextState {
         window_was_resized: false,
@@ -350,7 +309,7 @@ impl MdrGraphicsContext {
       recreate_info.image_extent = self.window.dimensions().into();
       (self.swapchain, self.swapchain_images) = self.swapchain.recreate(recreate_info).unwrap();
       self.framebuffers = create_framebuffers(
-        &self.memory_allocator,
+        &self.resource_manager.memory_allocator,
         &self.swapchain_images,
         &self.render_pass,
       );
@@ -400,7 +359,7 @@ impl MdrGraphicsContext {
   ) -> Arc<PrimaryAutoCommandBuffer> {
     // Create command buffer builder
     let mut builder = AutoCommandBufferBuilder::primary(
-      self.command_buffer_allocator.clone(),
+      self.resource_manager.command_buffer_allocator.clone(),
       queue.queue_family_index(),
       CommandBufferUsage::OneTimeSubmit,
     )
@@ -432,7 +391,7 @@ impl MdrGraphicsContext {
     // Upload camera transforms
     let scene_buffer = self.upload_scene_data(scene);
     let scene_descriptor_set = DescriptorSet::new(
-      self.descriptor_set_allocator.clone(),
+      self.resource_manager.descriptor_set_allocator.clone(),
       pipeline
         .graphics_pipeline
         .layout()
@@ -491,7 +450,11 @@ impl MdrGraphicsContext {
         brightness: light.brightness,
       });
 
-    let subbuffer = self.buffer_allocator.allocate_sized().unwrap();
+    let subbuffer = self
+      .resource_manager
+      .buffer_allocator
+      .allocate_sized()
+      .unwrap();
     *subbuffer.write().unwrap() = MdrSceneData {
       camera,
       point_lights,
