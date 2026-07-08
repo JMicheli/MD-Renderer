@@ -183,7 +183,7 @@ impl Display for MdrRotation {
 /// Represents a scale along the x, y, and z axes.
 #[derive(Debug, Clone, Copy)]
 
-pub struct MdrScale(Vector3<f32>);
+pub struct MdrScale(pub Vector3<f32>);
 
 impl MdrScale {
   pub fn set(&mut self, x: f32, y: f32, z: f32) {

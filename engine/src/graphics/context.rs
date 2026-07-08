@@ -471,7 +471,7 @@ impl MdrGraphicsContext {
     builder: &mut AutoCommandBufferBuilder<PrimaryAutoCommandBuffer>,
   ) {
     // TODO - Eliminate allocation here - should yield a significant speed up
-    // The render list contains tuples of a refernece to an object and its parent transform
+    // The render list contains tuples of a reference to an object and its parent transform
     // (if any). This is used to ensure that objects properly inherit their parents'
     // transforms in the next loop. The list initially just contains all root-level
     // objects in the scene.
@@ -511,11 +511,6 @@ impl MdrGraphicsContext {
         .resource_manager
         .get_material_handle(&render_data.material);
 
-      // Upload object's world transform as a push constant
-      let push_constants = MdrPushConstants {
-        transformation_matrix: object_transform.into(),
-      };
-
       // Bind vertex data
       builder
         .bind_vertex_buffers(
@@ -540,12 +535,14 @@ impl MdrGraphicsContext {
         )
         .unwrap();
 
-      // Push constants for object transform
+      // Upload object's world transform as a push constant
       builder
         .push_constants(
           pipeline.graphics_pipeline.layout().clone(),
           0,
-          push_constants,
+          MdrPushConstants {
+            transformation_matrix: object_transform.into(),
+          },
         )
         .unwrap();
 

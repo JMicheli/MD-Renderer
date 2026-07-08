@@ -1,14 +1,14 @@
 use std::sync::Arc;
 
 use vulkano::{
-  VulkanLibrary,
+  Validated, VulkanLibrary,
   device::{
     Device, DeviceCreateInfo, DeviceExtensions, DeviceFeatures, Queue, QueueCreateInfo, QueueFlags,
     physical::{PhysicalDevice, PhysicalDeviceType},
   },
   format::Format,
   image::{Image, ImageCreateInfo, ImageUsage, view::ImageView},
-  instance::{Instance, InstanceCreateInfo, InstanceExtensions},
+  instance::{Instance, InstanceCreateInfo, InstanceExtensions, LayerProperties},
   memory::allocator::{AllocationCreateInfo, FreeListAllocator, GenericMemoryAllocator},
   render_pass::{Framebuffer, FramebufferCreateInfo},
   swapchain::{Surface, Swapchain, SwapchainCreateInfo},
@@ -16,7 +16,10 @@ use vulkano::{
 };
 use winit::event_loop::ActiveEventLoop;
 
-use crate::graphics::{render_pass::MdrRenderPass, window::MdrWindow};
+use crate::{
+  config::VULKAN_DEBUG_LAYERS,
+  graphics::{render_pass::MdrRenderPass, window::MdrWindow},
+};
 
 /// Create a Vulkan instance with optional debug extensions.
 pub fn create_instance(
@@ -42,7 +45,7 @@ pub fn create_instance(
 
   // Enable layers
   let enabled_layers = {
-    let mut output_layers: Vec<String> = vec![];
+    let mut output_layers = Vec::new();
 
     // Ignore layers if not in debug mode
     if debug_enabled {
@@ -51,15 +54,21 @@ pub fn create_instance(
 
       let mut available_layers_str = String::new();
       for layer in available_layers {
-        let layer_str = format!("\t{}\n", layer.name());
-        available_layers_str.push_str(layer_str.as_str());
+        available_layers_str.push_str(format!("\t{}\n", layer.name()).as_str());
       }
       available_layers_str.pop();
       tracing::debug!("Available layers: \n{}", available_layers_str.as_str());
 
-      // Push validation layer
-      output_layers.push("VK_LAYER_KHRONOS_validation".to_owned());
-      tracing::debug!("Enabled layer: VK_LAYER_KHRONOS_validation");
+      // Push available debug layers
+      for layer_name in VULKAN_DEBUG_LAYERS {
+        let available_layers = library.layer_properties().unwrap();
+        if layer_is_available(available_layers, layer_name) {
+          output_layers.push(layer_name.to_string());
+          tracing::debug!("Enabled layer: {layer_name}");
+        } else {
+          tracing::warn!("Debug layer unavailable: {layer_name}");
+        }
+      }
     }
 
     output_layers
@@ -74,8 +83,26 @@ pub fn create_instance(
     },
   ) {
     Ok(instance) => instance,
-    Err(e) => panic!("Failed to create instance: {e}"),
+    Err(e) => match e {
+      Validated::Error(e) => panic!("Failed to create instance: {e}"),
+      Validated::ValidationError(e) => {
+        panic!("Failed to create instance: {e}")
+      }
+    },
   }
+}
+
+fn layer_is_available(
+  available_layers: impl Iterator<Item = LayerProperties>,
+  layer_name: &str,
+) -> bool {
+  for layer in available_layers {
+    if layer.name() == layer_name {
+      return true;
+    }
+  }
+
+  false
 }
 
 /// Select a physical device to use. Returns the device and associated queue family index.
@@ -235,7 +262,7 @@ pub fn create_framebuffers(
 /// draw commands and ensure that frames are processed in the order the swapchain acquires them.
 pub fn set_up_frame_futures(frame_count: usize) -> Vec<Option<Box<dyn GpuFuture>>> {
   // Frames in flight setup
-  let mut frame_futures: Vec<Option<Box<dyn GpuFuture>>> = Vec::new();
+  let mut frame_futures: Vec<Option<Box<dyn GpuFuture>>> = Vec::with_capacity(frame_count);
   for _ in 0..frame_count {
     frame_futures.push(None);
   }

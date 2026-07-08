@@ -8,6 +8,7 @@ use mdr_example_utils::{DEBUG_ENABLED, make_material, mesh_asset};
 
 // Consts for this example
 const LIGHT_BRIGHTNESS: f32 = 10.0;
+const SCALE_RATE: f32 = 1.10;
 
 fn main() {
   // Set up logging
@@ -83,7 +84,28 @@ impl MdrApplication for BasicExampleApp {
     engine.scene.camera.transform.translation.set(1.0, 3.0, 0.0);
   }
 
-  fn update(&mut self, _: &mut MdrScene, _: &MdrInputState, _: f32) {}
+  fn update(&mut self, scene: &mut MdrScene, input_state: &MdrInputState, dt: f32) {
+    // Scaling of root objects
+    let scale_delta = if input_state.up {
+      dt * SCALE_RATE
+    } else if input_state.down {
+      dt * -SCALE_RATE
+    } else {
+      return;
+    };
+
+    for (_, root_obj) in scene.scene_objects.iter_mut() {
+      let old_x = root_obj.transform.scale.0.x;
+      let old_y = root_obj.transform.scale.0.y;
+      let old_z = root_obj.transform.scale.0.z;
+
+      root_obj.transform.scale.set(
+        old_x + old_x * scale_delta,
+        old_y + old_y * scale_delta,
+        old_z + old_z * scale_delta,
+      );
+    }
+  }
 
   fn shutdown(&mut self, _: &mut MdrEngine) {}
 }
