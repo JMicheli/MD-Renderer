@@ -11,7 +11,7 @@ use crate::{
     texture::{MdrSamplerMode, MdrTextureCreateInfo},
     vertex::MdrVertex_tan,
   },
-  scene::{MdrRenderObject, MdrScene, transform::MdrTransform},
+  scene::{MdrObject, MdrRenderData, MdrScene, transform::MdrTransform},
 };
 
 pub fn from_path<P: AsRef<Path>>(
@@ -201,14 +201,12 @@ fn load_gltf_objects(
     return Err(GltfLoadError::NoGltfScene);
   };
 
-  for (index, node) in gltf_scene.nodes().enumerate() {
-    tracing::debug!("Processing node {index}");
+  for node in gltf_scene.nodes() {
+    let index = node.index();
+    tracing::debug!("Processing root node {index}");
 
-    if let Some(render_obj) = process_node(&node, material_list, mesh_list) {
-      let name = format!("Node_{index}");
-      scene.add_object(&name, render_obj);
-      tracing::debug!("Added object {name} to scene");
-    }
+    let name = format!("Node_{index}");
+    scene.add_object(&name, process_node(&node, material_list, mesh_list));
   }
 
   Ok(scene)
@@ -219,11 +217,13 @@ fn process_node(
   node: &gltf::Node,
   material_list: &[MdrMaterial],
   mesh_list: &[MdrMesh],
-) -> Option<MdrRenderObject> {
-  // Only objects with meshes will be rendered
-  node.mesh().map(|gltf_mesh| {
-    let mesh = mesh_list[gltf_mesh.index()].clone();
+) -> MdrObject {
+  tracing::debug!("Processing node {}", node.index());
+  let mut render_object = MdrObject::new(None);
 
+  // Get mesh and material if any
+  if let Some(gltf_mesh) = node.mesh() {
+    let mesh = mesh_list[gltf_mesh.index()].clone();
     // Grab the material assigned to the first primitive, or a default
     let primitive = gltf_mesh.primitives().next().unwrap();
     let material = primitive.material().index().map_or_else(
@@ -231,19 +231,16 @@ fn process_node(
       |mat_idx| material_list[mat_idx].clone(),
     );
 
-    let mut render_object = MdrRenderObject::new(mesh, material);
+    render_object.render_data = Some(MdrRenderData { mesh, material });
+  }
 
-    // Apply the node's local transform and recursively attach children
-    render_object.transform = MdrTransform::from_matrix(node.transform().matrix());
-    for (index, child_node) in node.children().enumerate() {
-      if let Some(child_obj) = process_node(&child_node, material_list, mesh_list) {
-        render_object.add_child(child_obj);
-        tracing::debug!("Added child object (idx: {index}) to parent");
-      }
-    }
+  // Set the node's local transform and recursively attach children
+  render_object.transform = MdrTransform::from_matrix(node.transform().matrix());
+  for child in node.children() {
+    render_object.add_child(process_node(&child, material_list, mesh_list));
+  }
 
-    render_object
-  })
+  render_object
 }
 
 #[derive(Debug, thiserror::Error)]

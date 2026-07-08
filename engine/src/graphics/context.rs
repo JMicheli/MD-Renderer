@@ -34,7 +34,7 @@ use crate::{
     },
     window::{MdrWindow, MdrWindowOptions},
   },
-  scene::{MdrRenderObject, MdrScene},
+  scene::{MdrObject, MdrScene},
 };
 
 use super::{
@@ -470,14 +470,23 @@ impl MdrGraphicsContext {
     pipeline: &MdrMeshPipeline,
     builder: &mut AutoCommandBufferBuilder<PrimaryAutoCommandBuffer>,
   ) {
-    // TODO - Document more robustly (esp. collection and transform handling)
     // TODO - Eliminate allocation here - should yield a significant speed up
-    let mut render_list: VecDeque<(&MdrRenderObject, Option<Matrix4<f32>>)> = scene
+    // The render list contains tuples of a refernece to an object and its parent transform
+    // (if any). This is used to ensure that objects properly inherit their parents'
+    // transforms in the next loop. The list initially just contains all root-level
+    // objects in the scene.
+    let mut render_list: VecDeque<(&MdrObject, Option<Matrix4<f32>>)> = scene
       .scene_objects
       .iter()
       .map(|item| (item.1, None))
       .collect();
 
+    // We walk over the list of render objects and their parent transforms. This is a four stage process:
+    // 1. We compute the object transform by applying the parent transform, if any.
+    // 2. The children of that current object are pushed onto the end of the render list to be walked
+    //    in future iterations of the loop.
+    // 3. If the object does not have a mesh and material, we continue to the next iteration.
+    // 4. If the object does have render data, we bind it and issue a draw call.
     while let Some((object, parent_transform)) = render_list.pop_front() {
       let object_transform = parent_transform.map_or_else(
         || object.transform.matrix(),
@@ -490,10 +499,17 @@ impl MdrGraphicsContext {
           .map(|child| (child, Some(object_transform))),
       );
 
+      let Some(render_data) = &object.render_data else {
+        // This object doesn't have render data, so it's just organizational.
+        continue;
+      };
+
       // Get handle to the mesh buffers from the resource manager
-      let mesh_handle = self.resource_manager.get_mesh_handle(&object.mesh);
+      let mesh_handle = self.resource_manager.get_mesh_handle(&render_data.mesh);
       // Get handle to the material buffer from the resource manager
-      let material_handle = self.resource_manager.get_material_handle(&object.material);
+      let material_handle = self
+        .resource_manager
+        .get_material_handle(&render_data.material);
 
       // Upload object's world transform as a push constant
       let push_constants = MdrPushConstants {

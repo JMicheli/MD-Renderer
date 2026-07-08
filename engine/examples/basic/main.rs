@@ -1,6 +1,6 @@
 use mdr_engine::{
   MdrApplication, MdrEngine, MdrInputState, MdrRunOptions,
-  scene::{MdrLight, MdrRenderObject, MdrScene},
+  scene::{MdrLight, MdrObject, MdrRenderData, MdrScene},
 };
 
 use mdr_example_utils::{DEBUG_ENABLED, mesh_asset};
@@ -53,19 +53,19 @@ impl MdrApplication for BasicExampleApp {
     let cube_mat = materials::wood_planks("cube_mat", engine);
 
     // Add Suzanne
-    let mut monkey = MdrRenderObject::new(monkey_mesh, monkey_mat);
+    let mut monkey = MdrObject::new(Some(MdrRenderData::new(monkey_mesh, monkey_mat)));
     monkey.transform.translation.set(0.0, 0.0, -2.0);
     engine.scene.add_object("suzanne", monkey);
     // Add sphere
-    let mut sphere = MdrRenderObject::new(sphere_mesh, sphere_mat);
+    let mut sphere = MdrObject::new(Some(MdrRenderData::new(sphere_mesh, sphere_mat)));
     sphere.transform.translation.set(2.0, -2.0, -3.0);
     engine.scene.add_object("sphere", sphere);
     // Add cube
-    let mut cube = MdrRenderObject::new(cube_mesh, cube_mat);
+    let mut cube = MdrObject::new(Some(MdrRenderData::new(cube_mesh, cube_mat)));
     cube.transform.translation.set(-2.0, -2.0, -3.0);
     engine.scene.add_object("cube", cube);
     // Add ground plane
-    let mut ground_plane = MdrRenderObject::new(plane_mesh, plane_mat);
+    let mut ground_plane = MdrObject::new(Some(MdrRenderData::new(plane_mesh, plane_mat)));
     ground_plane.transform.translation.set(0.0, 1.0, 0.0);
     engine.scene.add_object("ground", ground_plane);
 

@@ -1,7 +1,7 @@
 use mdr_engine::{
   MdrApplication, MdrEngine, MdrInputState, MdrRunOptions,
   resources::{MdrMaterial, MdrMeshMaterialCreateInfo, color::MdrColor},
-  scene::{MdrLight, MdrRenderObject, MdrScene},
+  scene::{MdrLight, MdrObject, MdrRenderData, MdrScene},
 };
 
 use mdr_example_utils::{DEBUG_ENABLED, make_material, mesh_asset};
@@ -36,12 +36,18 @@ impl MdrApplication for BasicExampleApp {
 
     // Add spheres
     let red_mat = red_material("red_mat", engine);
-    let mut sphere = MdrRenderObject::new(sphere_mesh.clone(), red_mat.clone());
+    let mut sphere = MdrObject::new(Some(MdrRenderData::new(
+      sphere_mesh.clone(),
+      red_mat.clone(),
+    )));
     sphere.transform.translation.set(2.0, -2.0, -3.0);
-    let mut sphere2 = MdrRenderObject::new(sphere_mesh.clone(), red_mat.clone());
+    let mut sphere2 = MdrObject::new(Some(MdrRenderData::new(
+      sphere_mesh.clone(),
+      red_mat.clone(),
+    )));
     sphere2.transform.translation.set(2.0, -4.0, -3.0);
     sphere2.transform.scale.set(0.5, 0.5, 0.5);
-    let mut sphere3 = MdrRenderObject::new(sphere_mesh, red_mat);
+    let mut sphere3 = MdrObject::new(Some(MdrRenderData::new(sphere_mesh, red_mat)));
     sphere3.transform.translation.set(2.0, -5.0, -3.0);
     sphere3.transform.scale.set(0.25, 0.25, 0.25);
     sphere2.add_child(sphere3);
@@ -50,12 +56,18 @@ impl MdrApplication for BasicExampleApp {
 
     // Add cubes
     let green_mat = green_material("green_mat", engine);
-    let mut cube = MdrRenderObject::new(cube_mesh.clone(), green_mat.clone());
+    let mut cube = MdrObject::new(Some(MdrRenderData::new(
+      cube_mesh.clone(),
+      green_mat.clone(),
+    )));
     cube.transform.translation.set(-2.0, -2.0, -3.0);
-    let mut cube2 = MdrRenderObject::new(cube_mesh.clone(), green_mat.clone());
+    let mut cube2 = MdrObject::new(Some(MdrRenderData::new(
+      cube_mesh.clone(),
+      green_mat.clone(),
+    )));
     cube2.transform.translation.set(-2.0, -3.0, -3.0);
     cube2.transform.scale.set(0.5, 0.5, 0.5);
-    let mut cube3 = MdrRenderObject::new(cube_mesh, green_mat);
+    let mut cube3 = MdrObject::new(Some(MdrRenderData::new(cube_mesh, green_mat)));
     cube3.transform.translation.set(-2.0, -4.0, -3.0);
     cube3.transform.scale.set(0.4, 0.4, 0.4);
     cube2.add_child(cube3);

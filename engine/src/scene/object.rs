@@ -2,20 +2,18 @@ use crate::graphics::resources::{MdrMaterial, MdrMesh};
 
 use super::transform::MdrTransform;
 
-pub struct MdrRenderObject {
-  pub mesh: MdrMesh,
+pub struct MdrObject {
   pub transform: MdrTransform,
-  pub material: MdrMaterial,
+  pub render_data: Option<MdrRenderData>,
 
   children: Vec<Self>,
 }
 
-impl MdrRenderObject {
-  pub fn new(mesh: MdrMesh, material: MdrMaterial) -> Self {
+impl MdrObject {
+  pub fn new(render_data: Option<MdrRenderData>) -> Self {
     Self {
-      mesh,
       transform: MdrTransform::identity(),
-      material,
+      render_data,
       children: Vec::new(),
     }
   }
@@ -30,5 +28,16 @@ impl MdrRenderObject {
 
   pub fn add_child(&mut self, child: Self) {
     self.children.push(child);
+  }
+}
+
+pub struct MdrRenderData {
+  pub mesh: MdrMesh,
+  pub material: MdrMaterial,
+}
+
+impl MdrRenderData {
+  pub const fn new(mesh: MdrMesh, material: MdrMaterial) -> Self {
+    Self { mesh, material }
   }
 }

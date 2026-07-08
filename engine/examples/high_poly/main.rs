@@ -1,7 +1,7 @@
 use mdr_engine::{
   MdrApplication, MdrEngine, MdrInputState, MdrRunOptions,
   resources::{MdrMeshMaterialCreateInfo, color::MdrColor},
-  scene::{MdrLight, MdrRenderObject, MdrScene},
+  scene::{MdrLight, MdrObject, MdrRenderData, MdrScene},
 };
 
 use mdr_example_utils::{DEBUG_ENABLED, mesh_asset};
@@ -64,7 +64,7 @@ impl MdrApplication for HighPolyExampleApp {
       .unwrap();
 
     // Add dragon
-    let mut dragon = MdrRenderObject::new(dragon_mesh, dragon_mat);
+    let mut dragon = MdrObject::new(Some(MdrRenderData::new(dragon_mesh, dragon_mat)));
     dragon.transform.scale.set(12.0, 12.0, 12.0);
     engine.scene.add_object("dragon", dragon);
     // Add light
