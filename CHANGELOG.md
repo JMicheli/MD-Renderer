@@ -2,6 +2,14 @@
 
 New versions of MD Renderer in descending chronological order.
 
+## [0.4.0] (Unreleased)
+
+This release makes a significant number of changes:
+
+- Implements a PBR shader and material system.
+- Adds the ability to load gLTF scenes.
+- Updated examples.
+
 ## [0.3.0](https://github.com/JMicheli/MD-Render/releases/tag/release-v0.3.0) - 2026-05-25
 
 This release updates the project to use the current latest version of Vulkano

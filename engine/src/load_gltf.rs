@@ -14,7 +14,7 @@ use crate::{
   scene::{MdrObject, MdrRenderData, MdrScene, transform::MdrTransform},
 };
 
-// TODO - This function does not seem to work. The current test scene doesn't render anything.
+// TODO - This function does not seem to work. The current test scene has transform problems.
 pub fn from_path<P: AsRef<Path>>(
   path: P,
   resource_manager: &mut MdrResourceManager,
