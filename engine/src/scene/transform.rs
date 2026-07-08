@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use nalgebra::{Matrix4, Translation3, UnitQuaternion, Vector3};
+use nalgebra::{Matrix4, Quaternion, Translation3, UnitQuaternion, Vector3};
 
 #[derive(Debug, Clone, Copy)]
 pub struct MdrTransform {
@@ -15,43 +15,6 @@ impl MdrTransform {
       translation: MdrTranslation::identity(),
       rotation: MdrRotation::identity(),
       scale: MdrScale::identity(),
-    }
-  }
-
-  pub fn from_matrix(matrix: [[f32; 4]; 4]) -> Self {
-    let m = Matrix4::from_fn(|r, c| matrix[r][c]);
-
-    // 4th column contains trainslation
-    let translation = MdrTranslation::new(m[(0, 3)], m[(1, 3)], m[(2, 3)]);
-
-    // Get scale components
-    let scale_x = Vector3::new(m[(0, 0)], m[(1, 0)], m[(2, 0)]).norm();
-    let scale_y = Vector3::new(m[(0, 1)], m[(1, 1)], m[(2, 1)]).norm();
-    let scale_z = Vector3::new(m[(0, 2)], m[(1, 2)], m[(2, 2)]).norm();
-
-    let mut scale = MdrScale::identity();
-    scale.set(scale_x, scale_y, scale_z);
-
-    // Get rotation from upper-left 3x3 portion
-    let m3x3 = nalgebra::Matrix3::new(
-      m[(0, 0)],
-      m[(0, 1)],
-      m[(0, 2)],
-      m[(1, 0)],
-      m[(1, 1)],
-      m[(1, 2)],
-      m[(2, 0)],
-      m[(2, 1)],
-      m[(2, 2)],
-    );
-    let rot3 = nalgebra::Rotation3::from_matrix(&m3x3);
-    let quat = UnitQuaternion::from(rot3);
-    let rotation = MdrRotation(quat);
-
-    Self {
-      translation,
-      rotation,
-      scale,
     }
   }
 
@@ -141,6 +104,10 @@ impl std::ops::AddAssign for MdrTranslation {
 pub struct MdrRotation(UnitQuaternion<f32>);
 
 impl MdrRotation {
+  pub fn from_quaternion(w: f32, i: f32, j: f32, k: f32) -> Self {
+    Self(UnitQuaternion::new_normalize(Quaternion::new(w, i, j, k)))
+  }
+
   pub fn set(&mut self, x: f32, y: f32, z: f32) {
     let x_rot = UnitQuaternion::from_axis_angle(&Vector3::x_axis(), x);
     let y_rot = UnitQuaternion::from_axis_angle(&Vector3::y_axis(), y);
@@ -186,6 +153,10 @@ impl Display for MdrRotation {
 pub struct MdrScale(pub Vector3<f32>);
 
 impl MdrScale {
+  pub const fn new(x: f32, y: f32, z: f32) -> Self {
+    Self(Vector3::new(x, y, z))
+  }
+
   pub fn set(&mut self, x: f32, y: f32, z: f32) {
     self.0.x = x;
     self.0.y = y;

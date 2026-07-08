@@ -11,7 +11,10 @@ use crate::{
     texture::{MdrSamplerMode, MdrTextureCreateInfo},
     vertex::MdrVertex_tan,
   },
-  scene::{MdrObject, MdrRenderData, MdrScene, transform::MdrTransform},
+  scene::{
+    MdrObject, MdrRenderData, MdrScene,
+    transform::{MdrRotation, MdrScale, MdrTransform, MdrTranslation},
+  },
 };
 
 // TODO - This function does not seem to work. The current test scene has transform problems.
@@ -236,12 +239,21 @@ fn process_node(
   }
 
   // Set the node's local transform and recursively attach children
-  render_object.transform = MdrTransform::from_matrix(node.transform().matrix());
+  render_object.transform = mdr_transform_from_gltf(node.transform());
   for child in node.children() {
     render_object.add_child(process_node(&child, material_list, mesh_list));
   }
 
   render_object
+}
+
+fn mdr_transform_from_gltf(source: gltf::scene::Transform) -> MdrTransform {
+  let (t, r, s) = source.decomposed();
+  MdrTransform {
+    translation: MdrTranslation::new(t[0], t[1], t[2]),
+    rotation: MdrRotation::from_quaternion(r[3], r[0], r[1], r[2]),
+    scale: MdrScale::new(s[0], s[1], s[2]),
+  }
 }
 
 #[derive(Debug, thiserror::Error)]
