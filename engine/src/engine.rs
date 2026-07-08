@@ -62,7 +62,7 @@ impl MdrEngine {
         self.input_context.mouse_input(state, button);
       }
       WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
-        tracing::info!("Scale factor changed to {scale_factor}");
+        tracing::debug!("Scale factor changed to {scale_factor}");
       }
       WindowEvent::RedrawRequested => {
         self

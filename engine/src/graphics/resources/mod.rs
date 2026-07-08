@@ -175,7 +175,15 @@ impl MdrResourceManager {
   ) -> Result<MdrMesh, MdrResourceError> {
     let mesh_handle = self.upload_mesh_to_gpu(mesh_data);
     self.mesh_library.insert(String::from(name), mesh_handle);
-    tracing::debug!("Added {name} to mesh library");
+
+    tracing::debug!(
+      "Added {name} to mesh library (p: {}, n: {}, u: {}, t: {}, i: {})",
+      mesh_data.positions.len(),
+      mesh_data.normals.len(),
+      mesh_data.uvs.len(),
+      mesh_data.tangents.len(),
+      mesh_data.indices.len(),
+    );
 
     Ok(MdrMesh {
       name: String::from(name),

@@ -47,7 +47,6 @@ pub fn create_instance(
     // Ignore layers if not in debug mode
     if debug_enabled {
       // Print out available layers
-      tracing::debug!("Available debugging layers:");
       let available_layers = library.layer_properties().unwrap();
 
       let mut available_layers_str = String::new();
@@ -112,7 +111,7 @@ pub fn pick_physical_device(
     panic!("Failed to find physical device and queue family.");
   });
 
-  println!(
+  tracing::debug!(
     "Supported device features: {:?}",
     device.0.supported_features()
   );
