@@ -9,7 +9,7 @@ use mdr_example_utils::{DEBUG_ENABLED, mesh_asset};
 /// How bright the scene's light will be.
 const LIGHT_BRIGHTNESS: f32 = 10.0;
 /// Initial offset of the camera from the origin.
-const CAMERA_DISTANCE: f32 = 7.75;
+const CAMERA_DISTANCE: f32 = 17.75;
 /// Speed that the dragon will rotate *in degrees* when input is provided.
 const DRAGON_ROTATION_SPEED: f32 = 7.0;
 
