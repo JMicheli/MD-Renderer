@@ -81,7 +81,12 @@ impl MdrApplication for BasicExampleApp {
     engine.scene.lights.add_light(white_light);
 
     // Move camera into position
-    engine.scene.camera.transform.translation.set(1.0, 3.0, 0.0);
+    engine
+      .scene
+      .camera
+      .transform
+      .translation
+      .set(1.0, 3.0, -10.0);
   }
 
   fn update(&mut self, scene: &mut MdrScene, input_state: &MdrInputState, dt: f32) {

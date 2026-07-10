@@ -24,7 +24,11 @@ struct GltfBoomboxExampleApp;
 impl MdrApplication for GltfBoomboxExampleApp {
   fn initialize(&mut self, engine: &mut MdrEngine) {
     engine.load_scene_from_gltf(scene_asset("boombox_with_axes/BoomBoxWithAxes.gltf"));
-    engine.scene.camera.transform.translate_by(0.0, 0.0, -0.05);
+    engine
+      .scene
+      .camera
+      .transform
+      .translate_by(0.0, -0.007, -0.073);
   }
 
   fn update(&mut self, scene: &mut MdrScene, input_state: &MdrInputState, dt: f32) {

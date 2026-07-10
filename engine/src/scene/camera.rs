@@ -62,7 +62,7 @@ impl Default for MdrCamera {
     Self {
       transform: MdrTransform::identity(),
 
-      field_of_view: FRAC_PI_2,
+      field_of_view: FRAC_PI_2 / 3.0,
       near_plane: 0.01,
       aspect_ratio: 1.0,
       far_plane: 1000.0,

@@ -75,6 +75,8 @@ impl MdrApplication for BasicExampleApp {
     let mut white_light = MdrLight::white(LIGHT_BRIGHTNESS);
     white_light.translation.set(1.0, 3.0, 3.0);
     engine.scene.lights.add_light(white_light);
+
+    engine.scene.camera.transform.translate_by(0.0, 0.0, -5.0);
   }
 
   fn update(&mut self, scene: &mut MdrScene, input_state: &MdrInputState, dt: f32) {
