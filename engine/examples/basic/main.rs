@@ -47,26 +47,28 @@ impl MdrApplication for BasicExampleApp {
       .unwrap();
 
     // Create object materials
-    let monkey_mat = materials::white_bricks("monkey_mat", engine);
-    let sphere_mat = materials::blue_tile("sphere_mat", engine);
-    let plane_mat = materials::metal_plates("plane_mat", engine);
+    let monkey_mat = materials::metal_plates("monkey_mat", engine);
+    let plane_mat = materials::blue_tile("plane_mat", engine);
+    let sphere_mat = materials::white_bricks("sphere_mat", engine);
     let cube_mat = materials::wood_planks("cube_mat", engine);
 
     // Add Suzanne
     let mut monkey = MdrObject::new(Some(MdrRenderData::new(monkey_mesh, monkey_mat)));
     monkey.transform.translation.set(0.0, 0.0, -2.0);
+    monkey.transform.scale.set(0.7, 0.7, 0.7);
     engine.scene.add_object("suzanne", monkey);
     // Add sphere
     let mut sphere = MdrObject::new(Some(MdrRenderData::new(sphere_mesh, sphere_mat)));
-    sphere.transform.translation.set(2.0, -2.0, -3.0);
+    sphere.transform.translation.set(2.0, 2.0, -3.0);
     engine.scene.add_object("sphere", sphere);
     // Add cube
     let mut cube = MdrObject::new(Some(MdrRenderData::new(cube_mesh, cube_mat)));
-    cube.transform.translation.set(-2.0, -2.0, -3.0);
+    cube.transform.translation.set(-2.0, 2.0, -3.0);
     engine.scene.add_object("cube", cube);
     // Add ground plane
     let mut ground_plane = MdrObject::new(Some(MdrRenderData::new(plane_mesh, plane_mat)));
-    ground_plane.transform.translation.set(0.0, 1.0, 0.0);
+    ground_plane.transform.translation.set(0.0, -1.0, 0.0);
+    ground_plane.transform.scale.set(5.0, 5.0, 5.0);
     engine.scene.add_object("ground", ground_plane);
 
     // Add white light

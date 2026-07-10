@@ -111,7 +111,8 @@ impl MdrLightPipeline {
         // Fixed functions of the rasterizer
         rasterization_state: Some(RasterizationState {
           // Clockwise-winding faces will be treated as front-facing
-          front_face: FrontFace::Clockwise,
+          // The inverted y axis that we use necessitates a change to counter-clockwise
+          front_face: FrontFace::CounterClockwise,
           // We cull back-facing faces to avoid unnecessary fragment threads
           cull_mode: CullMode::Back,
           ..Default::default()

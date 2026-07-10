@@ -247,6 +247,8 @@ fn process_node(
   render_object
 }
 
+/// Converts a `source` [`gltf::scene::Transform`] into an [`MdrTransform`] by extracting
+/// its components and using them to create the engine types.
 fn mdr_transform_from_gltf(source: gltf::scene::Transform) -> MdrTransform {
   let (t, r, s) = source.decomposed();
   MdrTransform {

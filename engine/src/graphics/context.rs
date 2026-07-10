@@ -11,7 +11,7 @@ use vulkano::{
     SubpassBeginInfo, SubpassContents, SubpassEndInfo,
   },
   descriptor_set::{DescriptorSet, WriteDescriptorSet},
-  device::{Device, DeviceExtensions, DeviceFeatures, Queue},
+  device::{Device, Queue},
   format::ClearValue,
   image::Image,
   memory::allocator::StandardMemoryAllocator,
@@ -23,7 +23,7 @@ use vulkano::{
 };
 
 use crate::{
-  config::MAX_POINT_LIGHTS,
+  config::{ENABLED_EXTENSIONS, ENABLED_FEATURES, MAX_POINT_LIGHTS},
   graphics::{
     pipeline::{MdrEnginePipelines, MdrMeshPipeline},
     render_pass::MdrRenderPass,
@@ -96,18 +96,6 @@ impl MdrGraphicsContext {
     let instance = create_instance(library, event_loop, debug_enabled);
     tracing::debug!("Created vulkan instance");
 
-    // Set enabled Vulkan device extensions
-    let device_extensions = DeviceExtensions {
-      khr_swapchain: true,
-      ..DeviceExtensions::empty()
-    };
-    // Set enabeled Vulkan device features
-    let enabled_features = DeviceFeatures {
-      runtime_descriptor_array: true,
-      descriptor_binding_variable_descriptor_count: true,
-      ..Default::default()
-    };
-
     // Create window
     let window_options = MdrWindowOptions {
       width: 800,
@@ -120,7 +108,7 @@ impl MdrGraphicsContext {
 
     // Select physical device and queue
     let (physical_device, queue_family_index) =
-      pick_physical_device(&instance, &device_extensions, &window.surface);
+      pick_physical_device(&instance, &ENABLED_EXTENSIONS, &window.surface);
 
     let device_name = &physical_device.properties().device_name;
     let device_type = physical_device.properties().device_type;
@@ -129,8 +117,8 @@ impl MdrGraphicsContext {
     // Create logical device
     let (logical_device, queue) = create_logical_device(
       physical_device.clone(),
-      &device_extensions,
-      &enabled_features,
+      &ENABLED_EXTENSIONS,
+      &ENABLED_FEATURES,
       queue_family_index,
     );
     tracing::debug!("Created logical device");
@@ -319,7 +307,9 @@ impl MdrGraphicsContext {
 
         // Recreate viewport and pipeline
         tracing::trace!("Window resized, recreating pipeline");
-        self.viewport.extent = self.window.dimensions().into();
+        let wd: [f32; 2] = self.window.dimensions().into();
+        self.viewport.extent = [wd[0], -wd[1]];
+        self.viewport.offset = [0.0, wd[1]];
         self
           .pipelines
           .mesh

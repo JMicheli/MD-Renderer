@@ -41,7 +41,7 @@ impl MdrTransform {
 
 /// Represents a translation along the x, y, and z axes.
 #[derive(Debug, Clone, Copy)]
-pub struct MdrTranslation(Translation3<f32>);
+pub struct MdrTranslation(pub Translation3<f32>);
 
 impl MdrTranslation {
   pub fn identity() -> Self {
@@ -98,16 +98,19 @@ impl std::ops::AddAssign for MdrTranslation {
   }
 }
 
-/// Represents a rotation in **degrees** around the x, y, and z axes.
+/// Represents a rotation around the x, y, and z axes as a quaternion.
 #[derive(Debug, Clone, Copy)]
 
-pub struct MdrRotation(UnitQuaternion<f32>);
+pub struct MdrRotation(pub UnitQuaternion<f32>);
 
 impl MdrRotation {
+  /// Create a new [`MdrRotation`] from quaternion components.
   pub fn from_quaternion(w: f32, i: f32, j: f32, k: f32) -> Self {
     Self(UnitQuaternion::new_normalize(Quaternion::new(w, i, j, k)))
   }
 
+  /// Set the rotation to correspond to the result of three rotations around the x, y, and z axes
+  /// (applied in that order).
   pub fn set(&mut self, x: f32, y: f32, z: f32) {
     let x_rot = UnitQuaternion::from_axis_angle(&Vector3::x_axis(), x);
     let y_rot = UnitQuaternion::from_axis_angle(&Vector3::y_axis(), y);
