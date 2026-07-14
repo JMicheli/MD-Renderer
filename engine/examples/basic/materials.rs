@@ -81,6 +81,13 @@ struct Textures {
   pub occlusion: MdrTexture,
 }
 
+/// Helper function defined for this example that loads a series of regularly-named textures
+/// from the provided `name_preamble` in the [`texture_asset`] path.
+///
+/// Loads:
+///   - `<name_preamble>_base_color`
+///   - `<name_preamble>_normal`
+///   - `<name_preamble>_occlusion`
 fn load_textures(engine: &mut MdrEngine, name_preamble: &str) -> Textures {
   let image =
     load_dynamic_image(texture_asset(&format!("{name_preamble}/base_color.png"))).unwrap();
