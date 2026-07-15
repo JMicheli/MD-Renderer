@@ -45,31 +45,6 @@ pub fn load_mesh_shaders(logical_device: &Arc<Device>) -> (Arc<ShaderModule>, Ar
   (vs, fs)
 }
 
-pub mod light_vertex_shader {
-  vulkano_shaders::shader! {
-    ty: "vertex",
-    include: ["src/graphics/shaders/include"],
-    path: "src/graphics/shaders/light.vert",
-  }
-}
-
-pub mod light_fragment_shader {
-  vulkano_shaders::shader! {
-    ty: "fragment",
-    path: "src/graphics/shaders/light.frag",
-  }
-}
-
-#[allow(dead_code)]
-pub fn load_light_shaders(logical_device: &Arc<Device>) -> (Arc<ShaderModule>, Arc<ShaderModule>) {
-  // Vertex shader
-  let vs = validate_load_result(light_vertex_shader::load(logical_device.clone()));
-  // Fragment shader
-  let fs = validate_load_result(light_fragment_shader::load(logical_device.clone()));
-
-  (vs, fs)
-}
-
 fn validate_load_result(
   output: Result<Arc<ShaderModule>, Validated<VulkanError>>,
 ) -> Arc<ShaderModule> {

@@ -17,7 +17,8 @@ use crate::{
   },
 };
 
-// TODO - This function does not seem to work. The current test scene has transform problems.
+/// Loads a gLTF scene from the provided `path`, generating texture, mesh, and material resources
+/// in the process. Outputs an [`MdrScene`] containing the loaded scene.
 pub fn from_path<P: AsRef<Path>>(
   path: P,
   resource_manager: &mut MdrResourceManager,

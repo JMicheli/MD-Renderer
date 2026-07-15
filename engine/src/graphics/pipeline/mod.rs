@@ -1,10 +1,7 @@
-pub mod light_pipeline;
 pub mod mesh_pipeline;
 
 use std::sync::Arc;
 
-#[allow(unused_imports)]
-pub use light_pipeline::MdrLightPipeline;
 pub use mesh_pipeline::MdrMeshPipeline;
 use vulkano::{device::Device, pipeline::graphics::viewport::Viewport};
 
